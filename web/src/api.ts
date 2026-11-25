@@ -1076,6 +1076,8 @@ export interface UpdateInfo {
   available: boolean
   notes?: string
   error?: string
+  // "owner/repo" the panel and its nodes update from.
+  repo?: string
 }
 
 export const checkUpdate = () => api<UpdateInfo>('api/update')

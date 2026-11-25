@@ -16,7 +16,7 @@ import {
   type NodeView,
 } from "./api";
 import { errMessage, notifyError } from "./notify";
-import { Button, CenterLoader, Modal, ReadOnly, Spinner, useConfirm } from "./ui";
+import { Button, CenterLoader, Code, Modal, ReadOnly, Spinner, useConfirm } from "./ui";
 import { type NodeUpdateRun, NodeUpdateProgress, runSettled } from "./NodeUpdateProgress";
 import { reloadOnVersion } from "./update";
 import { useCan } from "./role";
@@ -49,6 +49,9 @@ export function NodesPanel() {
   // The newest release, and the one the master could update to when it is behind.
   const [latest, setLatest] = useState("");
   const [masterNext, setMasterNext] = useState("");
+  // The repository this panel's build comes from — what a node ahead of the panel is
+  // switched onto when its agent is another repository's build.
+  const [updateRepo, setUpdateRepo] = useState("");
   const [updRun, setUpdRun] = useState<NodeUpdateRun | null>(null);
   const [updatingMaster, setUpdatingMaster] = useState(false);
   const { confirm, confirmNode } = useConfirm();
@@ -77,6 +80,7 @@ export function NodesPanel() {
           // A release still without its binaries is not offered to anyone yet.
           setLatest(u.ready && u.latest ? u.latest : "");
           setMasterNext(u.available && u.latest ? u.latest : "");
+          setUpdateRepo(u.repo || "");
         })
         .catch(() => {});
     // The routing editor's suggestions — routing's to read.
@@ -230,10 +234,25 @@ export function NodesPanel() {
         </p>
       )}
 
+      {/* An agent ahead of the panel is either a server updated by hand (the panel is
+          behind) or a node still on another repository's build — after a move from
+          upstream, say. The second never updates from here: that agent fetches only
+          its own repository's releases, and only newer ones. One command on the node
+          swaps in this panel's build and keeps the node joined. */}
       {anyAhead && (
-        <p className="accent-tint rounded-lg px-3 py-2 text-xs text-accent">
-          {t("nodes.someAgentsAhead")}
-        </p>
+        <div className="accent-tint rounded-lg px-3 py-2 text-xs text-accent">
+          <p>{t("nodes.someAgentsAhead")}</p>
+          {updateRepo && (
+            <>
+              <p className="mt-2">{t("nodes.switchAgentHint")}</p>
+              <div className="mt-2">
+                <Code block copy>
+                  {`curl -Ls https://raw.githubusercontent.com/${updateRepo}/main/install.sh | sudo bash -s -- --update-node`}
+                </Code>
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* A vertical list of sections, one per server — not a grid of cards. A fleet is

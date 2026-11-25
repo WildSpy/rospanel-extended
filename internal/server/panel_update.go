@@ -19,7 +19,10 @@ func updateRepo() string { return updater.ConfiguredRepo() }
 // checkUpdate reports the running version and, if the update repo is configured,
 // whether a newer GitHub release exists.
 func (rt *Router) checkUpdate(w http.ResponseWriter, r *http.Request) {
-	resp := map[string]any{"current": version.Version, "available": false}
+	// repo lets the UI hand out the command that moves a node onto this panel's build
+	// (install.sh --update-node) — the way off an agent from another repository, which
+	// self-updates only from its own.
+	resp := map[string]any{"current": version.Version, "available": false, "repo": updateRepo()}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 	rel, err := updater.Latest(ctx, updateRepo())

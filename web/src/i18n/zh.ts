@@ -2176,7 +2176,7 @@ const zh: Dict = {
   },
 
   health: {
-    panelUpdateHint: "请更新面板本身，节点已运行更新的版本。",
+    panelUpdateHint: "请更新面板本身。如果节点运行的是其他仓库的构建，请使用「服务器」页中的命令进行切换。",
     awgHint:
       "该通道已启用但隧道未运行，无人能通过它连接，而面板仍在为它下发密钥和配置。请检查该服务器的日志，并确认 AmneziaWG 端口已开放。",
     awg: "AmneziaWG",
@@ -4660,7 +4660,8 @@ const zh: Dict = {
     onlyThisServer: "目前只有这台服务器",
     onlyThisServerHint: "添加节点：面板会提供安装命令，服务器将在一分钟内出现。",
     someAgentsOutdated: "部分节点的代理程序版本低于面板。“全部更新”可将其升级到当前版本。",
-    someAgentsAhead: "部分节点的代理程序版本高于面板 — 请更新面板本身以使版本一致。",
+    someAgentsAhead: "部分节点的代理程序版本高于面板。如果节点是手动更新的，请更新面板本身。",
+    switchAgentHint: "如果节点仍在运行其他仓库的构建（例如从 AppsGanin/rospanel 迁移之后），其代理程序不会从这里更新：它只获取自己仓库的版本。请在节点上运行此命令——它会把节点切换到本面板的构建，并保持节点与面板的连接。",
     server: "服务器",
     neverJoined: "从未连接",
     disabled: "已禁用",

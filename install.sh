@@ -13,6 +13,13 @@
 #
 #   curl -Ls .../install.sh | sudo bash -s -- --join 'https://panel/…/v1/join#<token>'
 #
+# Node update: pass --update-node on an installed node to swap its agent for this
+# repository's build (checksum-verified), keeping the node joined. This is how a
+# node installed from another repository (e.g. upstream AppsGanin/rospanel) moves
+# over: its agent self-updates only from its own repository, never from the panel.
+#
+#   curl -Ls .../install.sh | sudo bash -s -- --update-node
+#
 # Optional environment variables (all honoured by `rospanel install`):
 #   ROSPANEL_HOST=vpn.example.com     bind a domain (enables ACME TLS)
 #   ROSPANEL_ACME_EMAIL=you@mail.com  contact e-mail for Let's Encrypt
@@ -31,8 +38,10 @@ JOIN_INSECURE=""
 CANDIDATE_ADDR=""
 MASTER_URL=""
 PAIR_TOKEN=""
+NODE_UPDATE=""
 while [ $# -gt 0 ]; do
 	case "$1" in
+		--update-node) NODE_UPDATE=1; shift ;;
 		--join)
 			[ $# -ge 2 ] || die "--join requires a URL (from the panel's Add-node dialog)"
 			JOIN_URL="$2"; shift 2 ;;
@@ -92,7 +101,7 @@ fi
 # (/dev/tty) instead. Opening fd 3 on /dev/tty fails when there is no terminal
 # (cron, CI, non-interactive SSH); in that case we skip and serve over IP.
 # Node mode needs no domain prompt (the panel assigns the node its host).
-if [ -z "$JOIN_URL" ] && [ -z "$CANDIDATE_ADDR" ] && [ -z "${ROSPANEL_HOST:-}" ] && { exec 3</dev/tty; } 2>/dev/null; then
+if [ -z "$JOIN_URL" ] && [ -z "$CANDIDATE_ADDR" ] && [ -z "$NODE_UPDATE" ] && [ -z "${ROSPANEL_HOST:-}" ] && { exec 3</dev/tty; } 2>/dev/null; then
 	printf '%sDomain for the panel%s (leave empty to serve over IP): ' "$BLD" "$RST" >&2
 	read -r answer <&3 || answer=""
 	ROSPANEL_HOST="$(printf '%s' "$answer" | tr -d '[:space:]')"
@@ -120,6 +129,38 @@ info "downloading ${BLD}${ASSET}${RST} (${VERSION})"
 fetch "$tmp/rospanel" "$url" || die "download failed: $url"
 [ -s "$tmp/rospanel" ] || die "downloaded file is empty — check the version tag"
 chmod +x "$tmp/rospanel"
+
+# --- node update: swap an installed node's agent for this repository's build ----
+# The node's identity and config live in /var/lib/rospanel-node and are left alone,
+# so it stays joined to its panel. Verified against the release's SHA256SUMS before
+# anything is replaced; a mismatch (or a release published between the two
+# downloads) stops here with the old agent untouched.
+if [ -n "$NODE_UPDATE" ]; then
+	unit=/etc/systemd/system/rospanel-node.service
+	bin=/usr/local/bin/rospanel
+	[ -f "$unit" ] || die "no rospanel-node service on this server — --update-node updates an installed node (to add one, use --join)"
+	# The panel and a node on one server share the binary: the panel is updated from
+	# the panel, not swapped from under it.
+	systemctl is-active --quiet rospanel && die "the panel itself runs on this server (rospanel.service) — update the panel instead"
+	command -v sha256sum >/dev/null 2>&1 || die "sha256sum not found"
+	sums_url="${url%/*}/SHA256SUMS"
+	fetch "$tmp/SHA256SUMS" "$sums_url" || die "download failed: $sums_url"
+	want="$(awk -v a="$ASSET" '$2 == a || $2 == "*" a { print $1 }' "$tmp/SHA256SUMS")"
+	[ -n "$want" ] || die "SHA256SUMS has no entry for ${ASSET}"
+	got="$(sha256sum "$tmp/rospanel" | awk '{ print $1 }')"
+	[ "$got" = "$want" ] || die "checksum mismatch for ${ASSET} — nothing was changed"
+	old="$("$bin" version 2>/dev/null || echo unknown)"
+	# The agent being replaced stays next to the new one, so going back is one move.
+	[ -f "$bin" ] && cp -f "$bin" "$bin.prev"
+	install -m 0755 "$tmp/rospanel" "$bin.new"
+	mv -f "$bin.new" "$bin"
+	info "restarting rospanel-node"
+	systemctl restart rospanel-node
+	info "${GRN}done${RST} — ${old} → $("$bin" version 2>/dev/null)"
+	info "the node reconnects to the panel on its own; logs: ${BLD}journalctl -u rospanel-node -f${RST}"
+	info "to go back: ${BLD}mv -f ${bin}.prev ${bin} && systemctl restart rospanel-node${RST}"
+	exit 0
+fi
 
 # --- node mode: join the panel and install the node service, then stop --------
 if [ -n "$JOIN_URL" ]; then

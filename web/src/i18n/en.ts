@@ -2176,7 +2176,7 @@ const en: Dict = {
   },
 
   health: {
-    panelUpdateHint: "Update the panel itself — the node already runs a newer version.",
+    panelUpdateHint: "Update the panel itself. If the node runs another repository's build, switch it with the command on the Servers tab.",
     awgHint:
       "The lane is switched on but its tunnel is not running, so nobody can connect through it — while the panel keeps handing out keys and configs for it. Check this server's log and that the AmneziaWG port is open.",
     awg: "AmneziaWG",
@@ -4687,7 +4687,8 @@ const en: Dict = {
     onlyThisServer: "Only this server so far",
     onlyThisServerHint: "Add a node: the panel hands you an install command and the server shows up within a minute.",
     someAgentsOutdated: "Some nodes run an agent older than the panel. “Update all” brings them to the current version.",
-    someAgentsAhead: "Some nodes run an agent newer than the panel — update the panel itself so the versions match.",
+    someAgentsAhead: "Some nodes run an agent newer than the panel. If a node was updated by hand, update the panel itself.",
+    switchAgentHint: "If a node is still on another repository's build (after moving from AppsGanin/rospanel, for example), its agent will not update from here: it takes releases only from its own repository. Run this command on the node — it switches the node to this panel's build and keeps it joined to the panel.",
     server: "Server",
     neverJoined: "has never joined",
     disabled: "disabled",
