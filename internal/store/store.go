@@ -345,13 +345,15 @@ func (s *Store) migrate() error {
 		{"0064_reality_default_off.sql", "0068_reality_default_off.sql"},
 		{"0065_happ_subscriptions.sql", "0069_happ_subscriptions.sql"},
 	}
-	for _, pair := range legacyRenames {
-		oldVer, newVer := pair[0], pair[1]
-		var countOld int
-		if err := s.db.QueryRow(`SELECT COUNT(1) FROM schema_migrations WHERE version = ?`, oldVer).Scan(&countOld); err == nil && countOld > 0 {
-			_, _ = s.db.Exec(`INSERT OR IGNORE INTO schema_migrations (version, applied_at) SELECT ?, applied_at FROM schema_migrations WHERE version = ?`, newVer, oldVer)
-			_, _ = s.db.Exec(`DELETE FROM schema_migrations WHERE version = ?`, oldVer)
-		}
+	if err := s.renameMigrationRecords(legacyRenames); err != nil {
+		return fmt.Errorf("migrate: rename legacy fork migrations: %w", err)
+	}
+	// A database coming straight from upstream AppsGanin/rospanel: upstream numbers these
+	// migrations 0066..0085, the fork carries the same files as 0070..0092. Without the
+	// mapping the fork re-runs them under its own names — 0087_settings_rev then dies on
+	// its seed INSERT (UNIQUE settings_rev.id), and the ones that change data re-apply it.
+	if err := s.renameMigrationRecords(upstreamRenames); err != nil {
+		return fmt.Errorf("migrate: map upstream migrations: %w", err)
 	}
 
 	// Defensive idempotency check:
@@ -462,6 +464,59 @@ func (s *Store) migrate() error {
 		}
 	}
 	return nil
+}
+
+// upstreamRenames maps migrations as upstream AppsGanin/rospanel names them to the
+// fork's filenames for the very same files (byte-identical, or for 0066 differing only
+// by IF NOT EXISTS). Upstream's 0066..0085 landed after the fork had already taken
+// 0066..0069 for its own migrations, so the two numberings diverge from there on.
+// Append-only: a pair stays as long as an upstream database may still be opened.
+var upstreamRenames = [][2]string{
+	{"0066_external_subscriptions.sql", "0070_external_subscriptions.sql"},
+	{"0067_plan_reset_period.sql", "0071_plan_reset_period.sql"},
+	{"0068_hysteria_obfs.sql", "0073_hysteria_obfs.sql"},
+	{"0069_node_traffic_limit.sql", "0074_node_traffic_limit.sql"},
+	{"0070_sub_templates.sql", "0075_sub_templates.sql"},
+	{"0071_node_traffic_alert_on.sql", "0076_node_traffic_alert_on.sql"},
+	{"0072_extsub_identity.sql", "0078_extsub_identity.sql"},
+	{"0073_trusted_nets.sql", "0080_trusted_nets.sql"},
+	{"0074_traffic_reset_day.sql", "0081_traffic_reset_day.sql"},
+	{"0075_sub_happ_crypt.sql", "0082_sub_happ_crypt.sql"},
+	{"0076_user_hold.sql", "0083_user_hold.sql"},
+	{"0077_group_speed_limit.sql", "0084_group_speed_limit.sql"},
+	{"0078_group_limits_access.sql", "0085_group_limits_access.sql"},
+	{"0079_user_awg_slot.sql", "0086_user_awg_slot.sql"},
+	{"0080_settings_rev.sql", "0087_settings_rev.sql"},
+	{"0081_drop_country_name_vars.sql", "0088_drop_country_name_vars.sql"},
+	{"0082_ip_bans.sql", "0089_ip_bans.sql"},
+	{"0083_billing_manual.sql", "0090_billing_manual.sql"},
+	{"0084_ext_relay.sql", "0091_ext_relay.sql"},
+	{"0085_admin_roles.sql", "0092_admin_roles.sql"},
+}
+
+// renameMigrationRecords re-records every applied migration listed as pairs[i][0] under
+// pairs[i][1], keeping its applied_at, so the runner treats it as already applied. A
+// database that already holds both names (a previous boot ran the file again under the
+// new one) just loses the old record. All pairs move in one transaction.
+func (s *Store) renameMigrationRecords(pairs [][2]string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	for _, p := range pairs {
+		oldVer, newVer := p[0], p[1]
+		if _, err := tx.Exec(
+			`INSERT OR IGNORE INTO schema_migrations (version, applied_at)
+			 SELECT ?, applied_at FROM schema_migrations WHERE version = ?`, newVer, oldVer,
+		); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`DELETE FROM schema_migrations WHERE version = ?`, oldVer); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func splitSQLStatements(sql string) []string {
