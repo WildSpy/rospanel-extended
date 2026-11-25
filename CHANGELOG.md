@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.13.0](https://github.com/WildSpy/rospanel-extended/compare/v5.12.2...v5.13.0) (2026-11-25)
+
+
+### Features
+
+* **nodes:** move a node off another repository's agent with install.sh --update-node ([e9345f5](https://github.com/WildSpy/rospanel-extended/commit/e9345f568357ac0116cdbe448db1e94181a3bd24))
+
 ## [5.12.2](https://github.com/WildSpy/rospanel-extended/compare/v5.12.1...v5.12.2) (2026-11-25)
 
 
