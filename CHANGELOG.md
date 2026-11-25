@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.12.2](https://github.com/WildSpy/rospanel-extended/compare/v5.12.1...v5.12.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **store:** open an upstream AppsGanin/rospanel database without re-running its migrations ([b476fba](https://github.com/WildSpy/rospanel-extended/commit/b476fba746eaac6bd1e5aab512da6156aa8c223f))
+* **update:** install and self-update from WildSpy/rospanel-extended ([2f4082b](https://github.com/WildSpy/rospanel-extended/commit/2f4082b5339c612593738e5abd27590db1ae65d2))
+
 ## [5.12.1](https://github.com/Shu1t3/rospanel-shu1t3/compare/v5.12.0...v5.12.1) (2026-11-23)
 
 
