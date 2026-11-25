@@ -6,8 +6,8 @@
 
 **基于 Xray-core 的自托管 VPN 管理面板——从一台个人服务器到一整套节点网络。**
 
-![Release](https://img.shields.io/github/v/release/AppsGanin/rospanel?label=版本&sort=semver&color=2ea44f)
-![Downloads](https://img.shields.io/github/downloads/AppsGanin/rospanel/total?label=下载量&color=6f42c1)
+![Release](https://img.shields.io/github/v/release/WildSpy/rospanel-extended?label=版本&sort=semver&color=2ea44f)
+![Downloads](https://img.shields.io/github/downloads/WildSpy/rospanel-extended/total?label=下载量&color=6f42c1)
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![Xray-core](https://img.shields.io/badge/Xray--core-v26.11.9-2b2b2b)
 ![React](https://img.shields.io/badge/UI-React%20%2B%20Vite%20%2B%20Tailwind-61DAFB?logo=react&logoColor=white)
@@ -62,7 +62,7 @@
 一条命令：下载发布版本，安装 systemd 服务和 `nftables`（如未安装），启动服务并打印登录信息。
 
 ```bash
-curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh | sudo bash
+curl -Ls https://raw.githubusercontent.com/WildSpy/rospanel-extended/main/install.sh | sudo bash
 ```
 
 **域名是可选的**。脚本会询问域名：有域名就输入；没有的话直接按 Enter，面板将在服务器 IP 上运行。
@@ -76,7 +76,7 @@ curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh | 
 ```bash
 # 下载最新发布版本（ARM 服务器请将 amd64 替换为 arm64）
 curl -fsSL -o rospanel \
-  https://github.com/AppsGanin/rospanel/releases/latest/download/rospanel-linux-amd64
+  https://github.com/WildSpy/rospanel-extended/releases/latest/download/rospanel-linux-amd64
 chmod +x rospanel
 
 # 安装为服务（将二进制复制到 /usr/local/bin，写入 systemd unit 并启动）
@@ -95,7 +95,7 @@ docker run -d --name rospanel \
   --cap-add NET_ADMIN \
   --device /dev/net/tun \
   -v rospanel-data:/data \
-  ghcr.io/appsganin/rospanel:latest
+  ghcr.io/wildspy/rospanel-extended:latest
 
 docker logs rospanel | grep -A6 FIRST-RUN
 ```
@@ -133,7 +133,7 @@ docker logs rospanel | grep -A6 FIRST-RUN
 **方式一——安装命令**。面板会给出现成的一行命令，在节点服务器上以 root 身份运行：
 
 ```bash
-curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh \
+curl -Ls https://raw.githubusercontent.com/WildSpy/rospanel-extended/main/install.sh \
   | sudo bash -s -- --join 'https://<panel>/<node-api-path>/v1/join#<token>'
 ```
 
@@ -148,7 +148,7 @@ curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh \
 ```yaml
 services:
   node:
-    image: ghcr.io/appsganin/rospanel:latest
+    image: ghcr.io/wildspy/rospanel-extended:latest
     command: node run
     network_mode: host          # Xray 绑定 443/TCP、80/TCP 和 Hysteria2 的 UDP 端口
     cap_add: [NET_ADMIN]        # nftables：按 IP 限制、端口跳跃

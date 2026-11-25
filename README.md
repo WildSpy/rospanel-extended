@@ -6,7 +6,7 @@
 
 **Панель управления VPN на Xray-core: один сервер или сеть нод.**
 
-![Release](https://img.shields.io/github/v/release/Shu1t3/rospanel-shu1t3?label=версия&sort=semver&color=2ea44f)
+![Release](https://img.shields.io/github/v/release/WildSpy/rospanel-extended?label=версия&sort=semver&color=2ea44f)
 ![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)
 ![Xray-core](https://img.shields.io/badge/Xray--core-v26.10.21-2b2b2b)
 ![Platform](https://img.shields.io/badge/platform-Linux-555?logo=linux&logoColor=white)
@@ -28,7 +28,7 @@
 На Linux-сервере выполните:
 
 ```bash
-curl -Ls https://raw.githubusercontent.com/Shu1t3/rospanel-shu1t3/main/install.sh | sudo bash
+curl -Ls https://raw.githubusercontent.com/WildSpy/rospanel-extended/main/install.sh | sudo bash
 ```
 
 Скрипт скачает релиз, установит сервис и предложит указать домен. Если домена нет, оставьте поле пустым для работы по IP. Домен можно передать заранее через `ROSPANEL_HOST`.
@@ -36,7 +36,7 @@ curl -Ls https://raw.githubusercontent.com/Shu1t3/rospanel-shu1t3/main/install.s
 Для ручной установки:
 
 ```bash
-curl -fsSL -o rospanel https://github.com/Shu1t3/rospanel-shu1t3/releases/latest/download/rospanel-linux-amd64
+curl -fsSL -o rospanel https://github.com/WildSpy/rospanel-extended/releases/latest/download/rospanel-linux-amd64
 chmod +x rospanel
 sudo ./rospanel install
 journalctl -u rospanel | grep -A6 FIRST-RUN
@@ -52,7 +52,7 @@ docker run -d --name rospanel \
   --cap-add NET_ADMIN \
   --device /dev/net/tun \
   -v rospanel-data:/data \
-  ghcr.io/shu1t3/rospanel-shu1t3:latest
+  ghcr.io/wildspy/rospanel-extended:latest
 ```
 
 `NET_ADMIN` и `/dev/net/tun` нужны для AmneziaWG и других возможностей, которым требуется TUN. Для постоянной установки подготовьте доступ к данным и перезапуск контейнера средствами Docker.
@@ -144,7 +144,7 @@ go test ./...
 
 ## Благодарности
 
-Проект основан на [AppsGanin/rospanel](https://github.com/AppsGanin/rospanel). Спасибо авторам [Xray-core](https://github.com/XTLS/Xray-core) и других используемых открытых компонентов.
+Проект основан на [AppsGanin/rospanel](https://github.com/AppsGanin/rospanel) и форке [Shu1t3/rospanel-shu1t3](https://github.com/Shu1t3/rospanel-shu1t3). Спасибо авторам [Xray-core](https://github.com/XTLS/Xray-core) и других используемых открытых компонентов.
 
 ## Лицензия
 

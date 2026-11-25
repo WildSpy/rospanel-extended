@@ -6,7 +6,7 @@ import (
 )
 
 func TestRepoConstant(t *testing.T) {
-	const want = "Shu1t3/rospanel-shu1t3"
+	const want = "WildSpy/rospanel-extended"
 	if Repo != want {
 		t.Errorf("Repo = %q, want %q", Repo, want)
 	}

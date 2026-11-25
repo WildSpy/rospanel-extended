@@ -91,8 +91,8 @@ func (rt *Router) handleMigrationStart(w http.ResponseWriter, r *http.Request) {
 	candHost := coord.StateManager().GetSession().CandidateAddr
 	masterURL := "https://" + r.Host
 	installCmd := fmt.Sprintf(
-		"curl -Ls https://raw.githubusercontent.com/Shu1t3/rospanel-shu1t3/main/install.sh | sudo bash -s -- --candidate '%s' --master '%s' --pair-token '%s'",
-		candHost, masterURL, token,
+		"curl -Ls https://raw.githubusercontent.com/%s/main/install.sh | sudo bash -s -- --candidate '%s' --master '%s' --pair-token '%s'",
+		updateRepo(), candHost, masterURL, token,
 	)
 
 	writeJSON(w, http.StatusOK, startMigrationResp{

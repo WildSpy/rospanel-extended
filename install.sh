@@ -2,7 +2,7 @@
 #
 # RosPanel quick installer.
 #
-#   curl -Ls https://raw.githubusercontent.com/Shu1t3/rospanel-shu1t3/main/install.sh | sudo bash
+#   curl -Ls https://raw.githubusercontent.com/WildSpy/rospanel-extended/main/install.sh | sudo bash
 #
 # Downloads the latest release binary, installs it as a systemd service via
 # `rospanel install`, and prints the one-time first-run credentials. Xray,
@@ -20,8 +20,8 @@
 #
 set -euo pipefail
 
-REPO="Shu1t3/rospanel-shu1t3"
-IMAGE="ghcr.io/shu1t3/rospanel-shu1t3"   # GHCR image name is always lowercase
+REPO="WildSpy/rospanel-extended"
+IMAGE="ghcr.io/wildspy/rospanel-extended"   # GHCR image name is always lowercase
 VERSION="${ROSPANEL_VERSION:-latest}"
 ASSET=""   # resolved from the host architecture in the preflight checks below
 

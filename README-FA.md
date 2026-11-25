@@ -6,8 +6,8 @@
 
 **پنل مدیریت VPN خودمیزبان بر پایهٔ Xray-core — از یک سرور شخصی تا شبکه‌ای از نودها.**
 
-![Release](https://img.shields.io/github/v/release/AppsGanin/rospanel?label=release&sort=semver&color=2ea44f)
-![Downloads](https://img.shields.io/github/downloads/AppsGanin/rospanel/total?label=downloads&color=6f42c1)
+![Release](https://img.shields.io/github/v/release/WildSpy/rospanel-extended?label=release&sort=semver&color=2ea44f)
+![Downloads](https://img.shields.io/github/downloads/WildSpy/rospanel-extended/total?label=downloads&color=6f42c1)
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![Xray-core](https://img.shields.io/badge/Xray--core-v26.11.9-2b2b2b)
 ![React](https://img.shields.io/badge/UI-React%20%2B%20Vite%20%2B%20Tailwind-61DAFB?logo=react&logoColor=white)
@@ -70,7 +70,7 @@
 راه می‌اندازد و اطلاعات ورود را چاپ می‌کند.
 
 ```bash
-curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh | sudo bash
+curl -Ls https://raw.githubusercontent.com/WildSpy/rospanel-extended/main/install.sh | sudo bash
 ```
 
 **دامنه اختیاری است.** اسکریپت آن را می‌پرسد: اگر دامنه دارید واردش کنید؛ اگر ندارید فقط Enter بزنید
@@ -85,7 +85,7 @@ curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh | 
 ```bash
 # آخرین نسخه را دانلود کنید (برای سرورهای ARM به‌جای amd64 بنویسید arm64)
 curl -fsSL -o rospanel \
-  https://github.com/AppsGanin/rospanel/releases/latest/download/rospanel-linux-amd64
+  https://github.com/WildSpy/rospanel-extended/releases/latest/download/rospanel-linux-amd64
 chmod +x rospanel
 
 # نصب به‌عنوان سرویس (فایل اجرایی را در /usr/local/bin کپی می‌کند، واحد systemd را می‌نویسد و راه‌اندازی می‌کند)
@@ -104,7 +104,7 @@ docker run -d --name rospanel \
   --cap-add NET_ADMIN \
   --device /dev/net/tun \
   -v rospanel-data:/data \
-  ghcr.io/appsganin/rospanel:latest
+  ghcr.io/wildspy/rospanel-extended:latest
 
 docker logs rospanel | grep -A6 FIRST-RUN
 ```
@@ -146,7 +146,7 @@ docker logs rospanel | grep -A6 FIRST-RUN
 اجرا کنید:
 
 ```bash
-curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh \
+curl -Ls https://raw.githubusercontent.com/WildSpy/rospanel-extended/main/install.sh \
   | sudo bash -s -- --join 'https://<panel>/<node-api-path>/v1/join#<token>'
 ```
 
@@ -163,7 +163,7 @@ volume هنوز `node.json` ندارد، بنابراین کانتینر را ه
 ```yaml
 services:
   node:
-    image: ghcr.io/appsganin/rospanel:latest
+    image: ghcr.io/wildspy/rospanel-extended:latest
     command: node run
     network_mode: host          # Xray پورت‌های 443/TCP، 80/TCP و پورت‌های UDP مربوط به Hysteria2 را می‌گیرد
     cap_add: [NET_ADMIN]        # nftables: محدودیت به‌ازای هر IP، port hopping

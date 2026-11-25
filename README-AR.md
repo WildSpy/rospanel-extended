@@ -6,8 +6,8 @@
 
 **لوحة تحكم VPN مستضافة ذاتيًا مبنية على Xray-core — من خادم شخصي واحد إلى شبكة من العقد.**
 
-![Release](https://img.shields.io/github/v/release/AppsGanin/rospanel?label=release&sort=semver&color=2ea44f)
-![Downloads](https://img.shields.io/github/downloads/AppsGanin/rospanel/total?label=downloads&color=6f42c1)
+![Release](https://img.shields.io/github/v/release/WildSpy/rospanel-extended?label=release&sort=semver&color=2ea44f)
+![Downloads](https://img.shields.io/github/downloads/WildSpy/rospanel-extended/total?label=downloads&color=6f42c1)
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![Xray-core](https://img.shields.io/badge/Xray--core-v26.11.9-2b2b2b)
 ![React](https://img.shields.io/badge/UI-React%20%2B%20Vite%20%2B%20Tailwind-61DAFB?logo=react&logoColor=white)
@@ -68,7 +68,7 @@ Xray من حالة اللوحة (لن تلمس JSON بيدك أبدًا)، وي�
 بيانات الدخول.
 
 ```bash
-curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh | sudo bash
+curl -Ls https://raw.githubusercontent.com/WildSpy/rospanel-extended/main/install.sh | sudo bash
 ```
 
 **النطاق اختياري.** سيسألك السكربت عنه: إن كان لديك نطاق فأدخله، وإلا فاضغط Enter فقط وستعمل
@@ -83,7 +83,7 @@ curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh | 
 ```bash
 # نزّل أحدث إصدار (استبدل amd64 بـ arm64 لخوادم ARM)
 curl -fsSL -o rospanel \
-  https://github.com/AppsGanin/rospanel/releases/latest/download/rospanel-linux-amd64
+  https://github.com/WildSpy/rospanel-extended/releases/latest/download/rospanel-linux-amd64
 chmod +x rospanel
 
 # التثبيت كخدمة (ينسخ الملف التنفيذي إلى /usr/local/bin، ويكتب وحدة systemd، ويشغّلها)
@@ -102,7 +102,7 @@ docker run -d --name rospanel \
   --cap-add NET_ADMIN \
   --device /dev/net/tun \
   -v rospanel-data:/data \
-  ghcr.io/appsganin/rospanel:latest
+  ghcr.io/wildspy/rospanel-extended:latest
 
 docker logs rospanel | grep -A6 FIRST-RUN
 ```
@@ -144,7 +144,7 @@ docker logs rospanel | grep -A6 FIRST-RUN
 root:
 
 ```bash
-curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh \
+curl -Ls https://raw.githubusercontent.com/WildSpy/rospanel-extended/main/install.sh \
   | sudo bash -s -- --join 'https://<panel>/<node-api-path>/v1/join#<token>'
 ```
 
@@ -161,7 +161,7 @@ curl -Ls https://raw.githubusercontent.com/AppsGanin/rospanel/main/install.sh \
 ```yaml
 services:
   node:
-    image: ghcr.io/appsganin/rospanel:latest
+    image: ghcr.io/wildspy/rospanel-extended:latest
     command: node run
     network_mode: host          # يربط Xray المنافذ 443/TCP و80/TCP ومنافذ UDP الخاصة بـ Hysteria2
     cap_add: [NET_ADMIN]        # nftables: حدود لكل IP، تنقّل المنافذ
