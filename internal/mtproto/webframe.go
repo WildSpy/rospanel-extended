@@ -29,8 +29,6 @@ const (
 	wfMaxPayload = 1 << 20
 	// wfMaxBatch caps the frames in one carrier message.
 	wfMaxBatch = 4096
-	// wfMaxStream is the largest stream id (24 bits).
-	wfMaxStream = 1<<24 - 1
 	// wfMaxPing caps a PING's (and so a PONG's) payload.
 	wfMaxPing = 64
 	// wfWindow0 is every stream's implicit credit, each way, never negotiated.

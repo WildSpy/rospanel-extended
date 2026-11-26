@@ -192,6 +192,9 @@ func dialCarrier(t *testing.T, srv *httptest.Server, protocol string) (*wsClient
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A 101 has no body (NoBody) and the WebSocket stream stays in br; anything else
+	// is the site's answer, read to its end here.
+	_ = resp.Body.Close()
 	if resp.StatusCode == http.StatusSwitchingProtocols && resp.Header.Get("Sec-WebSocket-Protocol") != protocol {
 		t.Fatalf("subprotocol %q echoed for %q", resp.Header.Get("Sec-WebSocket-Protocol"), protocol)
 	}
