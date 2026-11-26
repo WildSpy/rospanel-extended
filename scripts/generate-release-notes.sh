@@ -61,7 +61,7 @@ ${CHANGELOG_SNIPPET}
 rospanel update
 
 # Либо переустановка последней версии:
-curl -fsSL https://raw.githubusercontent.com/Shu1t3/rospanel-shu1t3/main/install.sh | bash
+curl -Ls https://raw.githubusercontent.com/WildSpy/rospanel-extended/main/install.sh | sudo bash
 \`\`\`
 
 ---
@@ -83,7 +83,7 @@ ${CHANGELOG_SNIPPET}
 rospanel update
 
 # Or clean install:
-curl -fsSL https://raw.githubusercontent.com/Shu1t3/rospanel-shu1t3/main/install.sh | bash
+curl -Ls https://raw.githubusercontent.com/WildSpy/rospanel-extended/main/install.sh | sudo bash
 \`\`\`
 EOF
 
