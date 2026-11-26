@@ -2,6 +2,7 @@ package snell_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	"github.com/sagernet/sing-snell/snellv4"
 	"github.com/sagernet/sing-snell/snellv6"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 
 	"github.com/Shu1t3/rospanel-shu1t3/internal/link"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/model"
@@ -142,6 +144,50 @@ func TestAgainstRealXray(t *testing.T) {
 
 			if after := userBytes(t, dir, apiPort, email); after-before < n {
 				t.Fatalf("Xray counted %d bytes for %s, want ≥ %d", after-before, email, n)
+			}
+
+			// Surge and Shadowrocket keep a pool of sessions (reuse): a finished request
+			// gives its connection back, and the next ones ride it — one after another
+			// and side by side.
+			if c.conf.Version == snell.V6 {
+				mode, _ := snellv6.ParseMode(c.conf.Mode)
+				rc, err := snellv6.NewClient(snellv6.ClientOptions{PSK: []byte(uuid), Mode: mode, Reuse: true,
+					Dialer: N.SystemDialer, Server: M.ParseSocksaddr("127.0.0.1:" + strconv.Itoa(server))})
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer rc.Close()
+				get := func() error {
+					ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+					defer cancel()
+					conn, err := rc.DialContext(ctx, M.ParseSocksaddr(target.Addr().String()))
+					if err != nil {
+						return err
+					}
+					defer conn.Close()
+					_ = conn.SetDeadline(time.Now().Add(20 * time.Second))
+					if _, err := fmt.Fprintf(conn, "GET / HTTP/1.1\r\nHost: t\r\nConnection: close\r\n\r\n"); err != nil {
+						return err
+					}
+					if got, err := io.Copy(io.Discard, conn); err != nil || got < n {
+						return fmt.Errorf("download: %d bytes, %w", got, err)
+					}
+					return nil
+				}
+				for i := range 3 {
+					if err := get(); err != nil {
+						t.Fatalf("reuse, request %d: %v", i+1, err)
+					}
+				}
+				errs := make(chan error, 4)
+				for range 4 {
+					go func() { errs <- get() }()
+				}
+				for range 4 {
+					if err := <-errs; err != nil {
+						t.Fatalf("reuse, side by side: %v", err)
+					}
+				}
 			}
 		})
 	}

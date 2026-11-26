@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"log/slog"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -238,6 +240,61 @@ func TestTCPAndUDPEveryVersion(t *testing.T) {
 				t.Fatalf("udp: %q from %v", buf[:n], from)
 			}
 		})
+	}
+}
+
+// syncBuffer is a log sink a test reads while the server writes to it.
+type syncBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+// A request that fails (a client on the wrong key, a version it does not speak) is
+// logged with the port's user, once per warnEvery; one that just connects and leaves
+// (a port check) is not.
+func TestFailedRequestIsLogged(t *testing.T) {
+	var out syncBuffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&out, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	x := newFakeXray(t)
+	for _, cfg := range []Config{{Version: V5, Obfs: ObfsNone}, {Version: V6, Mode: ModeDefault}} {
+		ports := freePorts(t, 1)
+		s := New(x.addr())
+		if err := s.Apply(cfg, "", []User{{Email: "u7", UUID: uuidA, Port: ports[0]}}); err != nil {
+			t.Fatal(err)
+		}
+		before := strings.Count(out.String(), "snell: request failed")
+		probe := dial(t, ports[0])
+		probe.Close()
+		_ = echoTCP(t, method(t, cfg, uuidB), ports[0])
+		_ = echoTCP(t, method(t, cfg, uuidB), ports[0])
+		deadline := time.Now().Add(20 * time.Second)
+		for strings.Count(out.String(), "snell: request failed") == before && time.Now().Before(deadline) {
+			time.Sleep(50 * time.Millisecond)
+		}
+		time.Sleep(200 * time.Millisecond)
+		got := out.String()
+		if n := strings.Count(got, "snell: request failed") - before; n != 1 {
+			t.Fatalf("v%d: %d lines for two failed requests and a probe, want 1:\n%s", cfg.Version, n, got)
+		}
+		if !strings.Contains(got, "user=u7") || !strings.Contains(got, "port="+strconv.Itoa(ports[0])) {
+			t.Fatalf("v%d: the line does not name the user and port:\n%s", cfg.Version, got)
+		}
+		s.Close()
 	}
 }
 

@@ -19,12 +19,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	snell "github.com/sagernet/sing-snell"
@@ -112,6 +115,9 @@ type port struct {
 	err    error
 	conns  map[net.Conn]struct{}
 	closed bool
+
+	warnedAt time.Time // the last line warn logged
+	muted    int       // lines warn left out since
 }
 
 // Apply makes the lane answer users as cfg says, and stops it for anyone no longer
@@ -390,7 +396,40 @@ func (p *port) serve(c net.Conn) {
 	source := M.SocksaddrFromNet(c.RemoteAddr())
 	_ = c.SetReadDeadline(time.Now().Add(handshakeTimeout))
 	ctx := context.WithValue(context.Background(), rawConnKey{}, c)
-	_ = p.svc.NewConnection(ctx, c, source, nil)
+	if err := p.svc.NewConnection(ctx, c, source, nil); err != nil && !quiet(err) {
+		p.warn("snell: request failed", source, err)
+	}
+}
+
+// quiet reports whether a connection's end is not worth a line: the client went away
+// (a port check that connects and leaves, a pool closing an idle session) or the port
+// was closed under it.
+func quiet(err error) bool {
+	return errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, syscall.EPIPE)
+}
+
+// warnEvery bounds the lines a port logs: one, then the next after this long with how
+// many were left out — a scan or a client with the wrong key must not flood the log.
+const warnEvery = 30 * time.Second
+
+// warn logs why a request on p failed, at most once per warnEvery.
+func (p *port) warn(msg string, source M.Socksaddr, err error) {
+	p.mu.Lock()
+	now := time.Now()
+	if now.Sub(p.warnedAt) < warnEvery {
+		p.muted++
+		p.mu.Unlock()
+		return
+	}
+	muted := p.muted
+	p.warnedAt, p.muted = now, 0
+	p.mu.Unlock()
+	args := []any{"user", p.user.Email, "port", p.user.Port, "from", source.Addr.String(), "err", err}
+	if muted > 0 {
+		args = append(args, "muted", muted)
+	}
+	slog.Warn(msg, args...)
 }
 
 // handshakeDone lifts the request deadline of the connection a request came on: a
@@ -410,6 +449,9 @@ type handler struct {
 func (h handler) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	handshakeDone(ctx)
 	err := h.s.relayTCP(h.p, conn, source, destination)
+	if err != nil && !quiet(err) {
+		h.p.warn("snell: tunnel to "+destination.String()+" failed", source, err)
+	}
 	if onClose != nil {
 		onClose(err)
 	}
