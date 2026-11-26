@@ -1098,7 +1098,7 @@ type Settings struct {
 	// lane ran (see MTProtoDomainOr): every link a user added carries it, and Telegram
 	// does not refresh a proxy the way a VPN app refreshes its subscription.
 	MTProtoDomain string `json:"-"`
-	// MTProtoWeb adds the WEB proxy of Telegram Desktop 7.1+ to the lane (see
+	// MTProtoWeb adds the WEB proxy of Telegram (Desktop 7.1+, Android, iOS) to the lane (see
 	// mtproto/webcap.go): its bridge page on the server's own HTTPS site, on its own
 	// domain (MTProtoWebHost). MTProtoWebOnly keeps only that: no fake-TLS port. A
 	// node's ride in NodeConnections.

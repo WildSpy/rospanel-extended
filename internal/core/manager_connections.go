@@ -89,7 +89,7 @@ type ConnectionsStatus struct {
 	MTProtoDomain  string `json:"mtproto_domain"`
 	MTProtoRunning bool   `json:"mtproto_running"`
 	MTProtoError   string `json:"mtproto_error,omitempty"`
-	// The WEB proxy of Telegram Desktop (see mtproto/webcap.go): its switches, and the
+	// The WEB proxy of Telegram (see mtproto/webcap.go): its switches, and the
 	// host it answers on — "" when the server has no own domain on 443 to carry it.
 	// For a node, MTProtoWebUnsupported is an agent too old to answer it, and
 	// MTProtoWebUntrusted a certificate no WebView accepts.

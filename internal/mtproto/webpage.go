@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// The bridge page: what Telegram Desktop's hidden WebView loads from
+// The bridge page: what a Telegram app's hidden WebView loads from
 // https://<host>/?bridge=<capability>#android=<nonce>. It holds no secret — only a
 // one-use carrier token the relay minted for this load — and does nothing but move
 // complete relay frames between the client and the carrier WebSocket.

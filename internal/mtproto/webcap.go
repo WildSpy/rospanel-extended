@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// WEB proxy (Telegram Desktop 7.1+): the client opens no MTProto socket. A hidden
-// WebView loads https://<host>/?bridge=<capability> from the server's own HTTPS site, and
+// WEB proxy (Telegram Desktop 7.1+, Android, iOS): the client opens no MTProto socket.
+// A hidden WebView loads https://<host>/?bridge=<capability> from the server's own HTTPS site, and
 // the page there carries the client's MTProxy streams over a same-origin WebSocket to
 // this package (web.go), which hands each one on exactly as a fake-TLS connection is.
 //
@@ -46,7 +46,7 @@ func WebSecretHex(uuid string) string {
 	return hex.EncodeToString(webSecret(uuid))
 }
 
-// WebProxyLink is the tg://webproxy link that adds a WEB proxy to Telegram Desktop. The
+// WebProxyLink is the tg://webproxy link that adds a WEB proxy to Telegram. The
 // port is 443 and is not in the link: Telegram neither takes nor shows one.
 func WebProxyLink(host, uuid string) string {
 	return "tg://webproxy?" + webProxyQuery(host, uuid)

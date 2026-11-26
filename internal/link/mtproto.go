@@ -10,7 +10,7 @@ import (
 func MTProtoOn(set *model.Settings) bool { return set.MTProtoFakeTLSOn() }
 
 // MTProtoWebProxyOn reports whether a server hands out its WEB proxy (Telegram Desktop
-// 7.1+): the lane and its WEB switch on, on the server's own domain.
+// 7.1+, Android, iOS): the lane and its WEB switch on, on the server's own domain.
 func MTProtoWebProxyOn(set *model.Settings) bool { return mtprotoWebHost(set) != "" }
 
 // MTProtoAnyOn reports whether a server hands out its Telegram proxy in either form.

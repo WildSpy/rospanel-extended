@@ -371,7 +371,7 @@ export interface ConnectionsStatus {
   mtproto_domain: string
   mtproto_running: boolean
   mtproto_error?: string
-  // The WEB proxy of Telegram Desktop 7.1+ beside it: its switches, and the host it
+  // The WEB proxy of Telegram (Desktop 7.1+, Android, iOS) beside it: its switches, and the host it
   // answers on ("" when the server has no own domain on 443). For a node: an agent too
   // old to answer it, and a certificate no WebView trusts.
   mtproto_web: boolean

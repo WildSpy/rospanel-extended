@@ -22,7 +22,7 @@ import (
 // the WEB links name; every other request goes on to the site untouched, and so does any
 // request here without an authentic capability or token, so a stranger sees the decoy.
 //
-// One carrier is one WebSocket of one user's Telegram Desktop; it multiplexes the
+// One carrier is one WebSocket of one user's Telegram app; it multiplexes the
 // client's MTProxy connections as streams. Each stream is the client's obfuscated
 // connection exactly as it would have opened it to the lane's port, minus fake TLS, and
 // goes to Telegram the same way: through Xray's mtproto-in under the user's UUID, so
@@ -34,7 +34,7 @@ const (
 	// webMaxTokens bounds the tokens outstanding: one per bridge page load.
 	webMaxTokens = 4096
 	// webMaxCarriers bounds the carriers open at once, webMaxUserCarriers one user's.
-	// Telegram Desktop keeps one per process.
+	// A Telegram app keeps one per process.
 	webMaxCarriers     = 1024
 	webMaxUserCarriers = 16
 	// webMaxStreams bounds one carrier's streams; an OPEN over it is answered CLOSE,

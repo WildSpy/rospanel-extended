@@ -106,7 +106,7 @@ type SyncRequest struct {
 	// (MTProtoState), and MTProtoError is why its listener is not up, when it is not.
 	MTProto      bool   `json:"mtproto,omitempty"`
 	MTProtoError string `json:"mtproto_error,omitempty"`
-	// MTProtoWeb ⇒ this agent also answers the WEB proxy of Telegram Desktop behind
+	// MTProtoWeb ⇒ this agent also answers the WEB proxy of Telegram behind
 	// its decoy (MTProtoState.Web).
 	MTProtoWeb  bool `json:"mtproto_web,omitempty"`
 	XrayRunning bool `json:"xray_running"`
