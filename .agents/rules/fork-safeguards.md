@@ -1,6 +1,6 @@
 # Fork Safeguards & Protected Subsystems
 
-В репозитории `Shu1t3/rospanel-shu1t3` реализованы ключевые функциональные улучшения и меры защиты, отсутствующие в upstream `AppsGanin/rospanel`. При любых рефакторингах, слияниях или оптимизациях эти компоненты **являются неприкосновенными** и должны сохранять свою работоспособность и архитектурную целостность.
+Репозиторий `WildSpy/rospanel-extended` — форк `Shu1t3/rospanel-shu1t3`, который сам является форком `AppsGanin/rospanel`. В нём реализованы ключевые функциональные улучшения и меры защиты, отсутствующие в upstream `AppsGanin/rospanel` (разделы 1.1–1.5 — из `Shu1t3/rospanel-shu1t3`, 1.6 — из `WildSpy/rospanel-extended`; полный список возможностей WildSpy — `AGENTS.md`, раздел 3). При любых рефакторингах, слияниях или оптимизациях эти компоненты **являются неприкосновенными** и должны сохранять свою работоспособность и архитектурную целостность.
 
 ---
 
@@ -45,8 +45,17 @@
   - Полное шифрование чувствительных полей во всех таблицах.
 
 ### 1.5. Репозиторий обновлений и брендинг
-* Переменная окружения `ROSPANEL_REPO` для независимого источника самообновления.
-* Скрипты и манифесты релизов (`.release-please-manifest.json`, workflow `release-please.yml`).
+* Переменная окружения `ROSPANEL_REPO` для независимого источника самообновления; по умолчанию — `WildSpy/rospanel-extended` (`internal/updater.Repo`, `REPO`/`IMAGE` в `install.sh`).
+* Скрипты и манифесты релизов (`.release-please-manifest.json`, workflow `release-please.yml`, `scripts/generate-release-notes.sh`).
+
+### 1.6. Telegram WEB-прокси (MTProto)
+* **Назначение**: WEB-прокси Telegram (Desktop 7.1+, Android, iOS) рядом с fake-TLS MTProto — клиент ходит через скрытую страницу на собственном HTTPS-сайте сервера.
+* **Ключевые файлы**: `internal/mtproto/web*.go`, `internal/mtproto/ws.go`, `internal/core/manager_mtproto.go`, `internal/nodeagent/mtproto.go`, `internal/link/mtproto.go`, миграция `0160_mtproto_web.sql`, `web/src/ConnectionsEditor.tsx`.
+* **Инварианты**:
+  - Мост и WebSocket отвечают только хосту WEB-прокси и только при верной капабилити или одноразовом токене; всё остальное отдаётся decoy без изменений.
+  - Потоки WEB идут через `serve()` и `mtproto-in` Xray под UUID пользователя — статистика, лимиты устройств, скорость и маршрутизация не обходятся.
+  - Капабилити и токены сравниваются в константном времени; секрет пользователя не попадает в страницу.
+  - Формат кадров, капабилити и ссылок соответствует Telegram «WEB proxy protocol v1»; менять их можно только вслед за изменением протокола Telegram.
 
 ---
 
