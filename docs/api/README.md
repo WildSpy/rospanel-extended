@@ -451,7 +451,7 @@ that signs people in by their subscription link finds them with `?sub_token=`.
 `blocks` (what plugins add to the page: `{type: text|markdown|notice|button, text, label, url}`),
 traffic, term, `sub_url`, one-tap imports per app (`apps`), every config (`links`), the Clash
 download (`clash_url`), the plain WireGuard configs (`wg`: `{name, conf_url, qr_url}`, as `awg`), the Telegram proxy per server (`telegram`: `{name, link, web_link, qr_url}` —
-`link` is the `tg://proxy` that adds it in one tap), devices, the payment block (`billing`), the operator's colours
+`link` is the `tg://proxy` that adds it in one tap; a server with the Telegram WEB proxy on adds a second entry whose `link` is `tg://webproxy`), devices, the payment block (`billing`), the operator's colours
 (`brand`), `terms_url` / `privacy_url` (the operator's documents, while they have text — `GET /v1/legal`
 has the text itself) and `tg_link` — the user bot's link that binds the account to the Telegram it is
 opened in (moves it there when `tg_linked`; absent while the switches in Settings → Telegram

@@ -427,7 +427,7 @@ bot 发送。
 内容：`{type: text|markdown|notice|button, text, label, url}`）、流量、期限、`sub_url`、
 按应用的一键导入（`apps`）、每个配置（`links`）、Clash 下载（`clash_url`）、纯 WireGuard
 配置（`wg`：`{name, conf_url, qr_url}`，形式同 `awg`）、按服务器的 Telegram 代理
-（`telegram`：`{name, link, web_link, qr_url}`——`link` 是一键添加的 `tg://proxy`）、设备、
+（`telegram`：`{name, link, web_link, qr_url}`——`link` 是一键添加的 `tg://proxy`；开启了 Telegram WEB 代理的服务器会多一条 `link` 为 `tg://webproxy` 的记录）、设备、
 付款区块（`billing`）、运营者的配色（`brand`）、`terms_url` / `privacy_url`（运营者的文档，
 当其有文本时——`GET /v1/legal` 提供文本本身）以及 `tg_link`——用户 bot 的链接，把账户绑定到
 打开该页面的 Telegram（在 `tg_linked` 时会把账户移过去；当 *设置 → Telegram* 中的开关没有
