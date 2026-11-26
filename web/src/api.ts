@@ -371,6 +371,14 @@ export interface ConnectionsStatus {
   mtproto_domain: string
   mtproto_running: boolean
   mtproto_error?: string
+  // The WEB proxy of Telegram Desktop 7.1+ beside it: its switches, and the host it
+  // answers on ("" when the server has no own domain on 443). For a node: an agent too
+  // old to answer it, and a certificate no WebView trusts.
+  mtproto_web: boolean
+  mtproto_web_only: boolean
+  mtproto_web_host: string
+  mtproto_web_unsupported?: boolean
+  mtproto_web_untrusted?: boolean
 }
 
 export interface AWGParams {
@@ -440,6 +448,9 @@ export interface ConnectionsUpdate {
   // default one.
   mtproto_domain: string
   mtproto_domain_reset?: boolean
+  // The WEB proxy switches; left out, the server keeps what it has.
+  mtproto_web?: boolean
+  mtproto_web_only?: boolean
 }
 
 export const applyConnections = (u: ConnectionsUpdate) =>

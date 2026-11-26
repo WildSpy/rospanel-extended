@@ -1237,6 +1237,7 @@ func (a *Agent) buildSyncRequest() nodeapi.SyncRequest {
 		XHTTP:             a.xhttp != nil,
 		MieruError:        a.mieruError(),
 		MTProto:           a.mtproto != nil,
+		MTProtoWeb:        a.mtproto != nil,
 		MTProtoError:      a.mtprotoError(),
 		UpdateError:       a.updateErr,
 		TurnDown:          a.turn.Failed(),
@@ -1684,9 +1685,15 @@ func (a *Agent) ensureDecoy(dest, template string) error {
 			(*hp).ServeHTTP(w, r)
 		}
 	})
+	// The WEB proxy's bridge page and carrier live on the node's own site, before the
+	// decoy; a request that does not authenticate goes on to it (mtproto.WebHandler).
+	site := http.Handler(decoyHandler)
+	if a.mtproto != nil {
+		site = a.mtproto.WebHandler(decoyHandler)
+	}
 	srv := &http.Server{
 		// NaiveProxy and TrustTunnel tunnels arrive through the same fallback (internal/naive).
-		Handler:           a.naiveHandler(decoyHandler),
+		Handler:           a.naiveHandler(site),
 		Protocols:         protocols,
 		HTTP2:             naive.HTTP2Config(),
 		ReadHeaderTimeout: 10 * time.Second,

@@ -1098,6 +1098,12 @@ type Settings struct {
 	// lane ran (see MTProtoDomainOr): every link a user added carries it, and Telegram
 	// does not refresh a proxy the way a VPN app refreshes its subscription.
 	MTProtoDomain string `json:"-"`
+	// MTProtoWeb adds the WEB proxy of Telegram Desktop 7.1+ to the lane (see
+	// mtproto/webcap.go): its bridge page on the server's own HTTPS site, on its own
+	// domain (MTProtoWebHost). MTProtoWebOnly keeps only that: no fake-TLS port. A
+	// node's ride in NodeConnections.
+	MTProtoWeb     bool `json:"-"`
+	MTProtoWebOnly bool `json:"-"`
 
 	// VLESS + gRPC + REALITY inbound (separate port). REALITY borrows the TLS of a
 	// real site (RealityDest) instead of our cert. Keys/shortId/serviceName are
@@ -2038,6 +2044,56 @@ func (s *Settings) MTProtoAutoDomain() string {
 		return n
 	}
 	return s.RealitySNI()
+}
+
+// MTProtoWebHost is the host a server's WEB proxy answers on, "" while it cannot: the
+// lane and its WEB switch on, and the server's own domain (OwnName) served by the TCP-TLS
+// lane on 443 — Telegram fixes the port, and the bridge page is that site's, behind its
+// certificate. A server known by its address alone has no WEB proxy.
+func (s *Settings) MTProtoWebHost() string {
+	if !s.MTProtoEnabled || !s.MTProtoWeb {
+		return ""
+	}
+	return s.MTProtoWebCandidate()
+}
+
+// MTProtoWebCandidate is the host the WEB proxy would answer on, whether or not it is
+// switched on: "" when the server cannot carry it (see MTProtoWebHost).
+func (s *Settings) MTProtoWebCandidate() string {
+	if port := s.VLESSPort; port != 0 && port != 443 {
+		return ""
+	}
+	return mtprotoWebHost(s.OwnName())
+}
+
+// MTProtoFakeTLSOn reports whether a server's MTProto lane listens on its own port for
+// fake-TLS clients: on, with a port, and not left to the WEB proxy alone.
+func (s *Settings) MTProtoFakeTLSOn() bool {
+	return s.MTProtoEnabled && s.MTProtoPort > 0 && !(s.MTProtoWebOnly && s.MTProtoWebHost() != "")
+}
+
+// mtprotoWebHost is h when Telegram takes it for a WEB proxy address: a lowercase DNS
+// name of two labels or more (mtproto.WebHost; kept here so the model needs no import).
+func mtprotoWebHost(h string) string {
+	h = strings.ToLower(strings.TrimSpace(h))
+	if h == "" || strings.HasSuffix(h, ".") || !strings.Contains(h, ".") {
+		return ""
+	}
+	if _, err := netip.ParseAddr(strings.Trim(h, "[]")); err == nil {
+		return ""
+	}
+	for i := 0; i < len(h); i++ {
+		c := h[i]
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-' || c == '.') {
+			return ""
+		}
+	}
+	// A browser reads a name ending in a number (or 0x…) as an IPv4 address.
+	tld := h[strings.LastIndexByte(h, '.')+1:]
+	if strings.HasPrefix(tld, "0x") || strings.Trim(tld, "0123456789") == "" {
+		return ""
+	}
+	return h
 }
 
 // MTProtoOwnDomain reports whether d names this server itself — its own domain, or the

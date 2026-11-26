@@ -77,7 +77,7 @@ type Reality = { port: number; dests: string[]; antiReplay: boolean };
 type Anti = { fragment: boolean; min13: boolean; blockQuic: boolean };
 type Awg = { port: number; dns: string };
 type Mieru = { port: number; transport: string };
-type MTProto = { port: number; domain: string };
+type MTProto = { port: number; domain: string; web: boolean; webOnly: boolean };
 
 // ConnectionsEditor is the full connection editor (protocols on/off + names +
 // fingerprints + ports + hop + WS + REALITY donor/keys/regen/port/anti-replay +
@@ -151,7 +151,7 @@ export function ConnectionsEditor({
   const [awgCfg, setAwgCfg] = useState<Awg>({ port: 0, dns: "" });
   const [regenAwg, setRegenAwg] = useState(false);
   const [mieruCfg, setMieruCfg] = useState<Mieru>({ port: 0, transport: "TCP" });
-  const [mtprotoCfg, setMtprotoCfg] = useState<MTProto>({ port: 0, domain: "" });
+  const [mtprotoCfg, setMtprotoCfg] = useState<MTProto>({ port: 0, domain: "", web: false, webOnly: false });
   const [saved, setSaved] = useState<{
     enabled: Record<string, boolean>;
     fps: Record<string, string>;
@@ -171,7 +171,7 @@ export function ConnectionsEditor({
     anti: { fragment: false, min13: false, blockQuic: false },
     awg: { port: 0, dns: "" },
     mieru: { port: 0, transport: "TCP" },
-    mtproto: { port: 0, domain: "" },
+    mtproto: { port: 0, domain: "", web: false, webOnly: false },
   });
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
@@ -197,7 +197,12 @@ export function ConnectionsEditor({
     const a: Anti = { fragment: s.tls_fragment, min13: s.tls_min13, blockQuic: s.block_quic };
     const g: Awg = { port: s.awg_port, dns: s.awg_dns || "" };
     const mi: Mieru = { port: s.mieru_port || 0, transport: s.mieru_transport || "TCP" };
-    const mt: MTProto = { port: s.mtproto_port || 0, domain: s.mtproto_domain || "" };
+    const mt: MTProto = {
+      port: s.mtproto_port || 0,
+      domain: s.mtproto_domain || "",
+      web: s.mtproto_web,
+      webOnly: s.mtproto_web_only,
+    };
     setEnabled(en);
     setFps(fp);
     setNames(nm);
@@ -237,7 +242,11 @@ export function ConnectionsEditor({
   const antiClientChanged = anti.fragment !== saved.anti.fragment || anti.blockQuic !== saved.anti.blockQuic;
   const awgChanged = awgCfg.port !== saved.awg.port || awgCfg.dns !== saved.awg.dns || regenAwg;
   const mieruChanged = mieruCfg.port !== saved.mieru.port || mieruCfg.transport !== saved.mieru.transport;
-  const mtprotoChanged = mtprotoCfg.port !== saved.mtproto.port || mtprotoCfg.domain !== saved.mtproto.domain;
+  const mtprotoChanged =
+    mtprotoCfg.port !== saved.mtproto.port ||
+    mtprotoCfg.domain !== saved.mtproto.domain ||
+    mtprotoCfg.web !== saved.mtproto.web ||
+    mtprotoCfg.webOnly !== saved.mtproto.webOnly;
   const dirty =
     fpsChanged || namesChanged || protocolsChanged || hyChanged ||
     realityChanged || regenReality || antiServerChanged || antiClientChanged || awgChanged || mieruChanged || mtprotoChanged;
@@ -297,6 +306,8 @@ export function ConnectionsEditor({
         mtproto_domain: mtprotoCfg.domain === saved.mtproto.domain ? "" : mtprotoCfg.domain,
         // A field emptied on purpose goes back to the default domain.
         mtproto_domain_reset: mtprotoCfg.domain === "" && saved.mtproto.domain !== "",
+        mtproto_web: mtprotoCfg.web,
+        mtproto_web_only: mtprotoCfg.web && mtprotoCfg.webOnly,
       });
       applyStatus(s);
       notifySuccess(t("common.saved"));
@@ -650,30 +661,71 @@ export function ConnectionsEditor({
                 {p.key === "mtproto" &&
                   (on ? (
                     <>
-                      <SettingRow
-                        label={t("conn.port")}
-                        field={
-                          <TextInput
-                            type="number"
-                            value={mtprotoCfg.port ? String(mtprotoCfg.port) : ""}
-                            placeholder={t("conn.awgPortAuto")}
-                            onChange={(v) =>
-                              setMtprotoCfg((m) => ({ ...m, port: Number(v.replace(/\D/g, "")) || 0 }))
+                      {!(mtprotoCfg.web && mtprotoCfg.webOnly) && (
+                        <>
+                          <SettingRow
+                            label={t("conn.port")}
+                            field={
+                              <TextInput
+                                type="number"
+                                value={mtprotoCfg.port ? String(mtprotoCfg.port) : ""}
+                                placeholder={t("conn.awgPortAuto")}
+                                onChange={(v) =>
+                                  setMtprotoCfg((m) => ({ ...m, port: Number(v.replace(/\D/g, "")) || 0 }))
+                                }
+                              />
                             }
                           />
-                        }
-                      />
+                          <SettingRow
+                            label={t("conn.mtprotoDomain")}
+                            hint={t("conn.mtprotoDomainHint")}
+                            field={
+                              <TextInput
+                                mono
+                                value={mtprotoCfg.domain}
+                                onChange={(v) => setMtprotoCfg((m) => ({ ...m, domain: v.trim() }))}
+                              />
+                            }
+                          />
+                        </>
+                      )}
                       <SettingRow
-                        label={t("conn.mtprotoDomain")}
-                        hint={t("conn.mtprotoDomainHint")}
-                        field={
-                          <TextInput
-                            mono
-                            value={mtprotoCfg.domain}
-                            onChange={(v) => setMtprotoCfg((m) => ({ ...m, domain: v.trim() }))}
+                        label={t("conn.mtprotoWeb")}
+                        hint={t("conn.mtprotoWebHint")}
+                        control={
+                          <Switch
+                            checked={mtprotoCfg.web}
+                            // Off is always allowed; on needs the server's own domain on 443.
+                            disabled={!mtprotoCfg.web && !status.mtproto_web_host}
+                            onChange={(v) => setMtprotoCfg((m) => ({ ...m, web: v, webOnly: v && m.webOnly }))}
                           />
                         }
                       />
+                      {status.mtproto_web_host ? (
+                        mtprotoCfg.web && (
+                          <>
+                            <Field label={t("conn.mtprotoWebAddress")} value={`${status.mtproto_web_host}:443`} />
+                            <SettingRow
+                              label={t("conn.mtprotoWebOnly")}
+                              hint={t("conn.mtprotoWebOnlyHint")}
+                              control={
+                                <Switch
+                                  checked={mtprotoCfg.webOnly}
+                                  onChange={(v) => setMtprotoCfg((m) => ({ ...m, webOnly: v }))}
+                                />
+                              }
+                            />
+                          </>
+                        )
+                      ) : (
+                        <SettingRow hint={<span className="text-warning">{t("conn.mtprotoWebNoDomain")}</span>} />
+                      )}
+                      {mtprotoCfg.web && status.mtproto_web_unsupported && (
+                        <SettingRow hint={<span className="text-warning">{t("conn.mtprotoWebUnsupported")}</span>} />
+                      )}
+                      {mtprotoCfg.web && status.mtproto_web_untrusted && (
+                        <SettingRow hint={<span className="text-warning">{t("conn.mtprotoWebUntrusted")}</span>} />
+                      )}
                       {status.mtproto_error && (
                         <SettingRow
                           hint={<span className="text-warning">{status.mtproto_error}</span>}

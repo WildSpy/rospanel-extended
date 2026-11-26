@@ -15,6 +15,7 @@ import (
 
 	"github.com/Shu1t3/rospanel-shu1t3/internal/auth"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/model"
+	"github.com/Shu1t3/rospanel-shu1t3/internal/mtproto"
 )
 
 // ConnInfo describes one client-facing protocol endpoint. Key is the stable
@@ -88,6 +89,15 @@ type ConnectionsStatus struct {
 	MTProtoDomain  string `json:"mtproto_domain"`
 	MTProtoRunning bool   `json:"mtproto_running"`
 	MTProtoError   string `json:"mtproto_error,omitempty"`
+	// The WEB proxy of Telegram Desktop (see mtproto/webcap.go): its switches, and the
+	// host it answers on — "" when the server has no own domain on 443 to carry it.
+	// For a node, MTProtoWebUnsupported is an agent too old to answer it, and
+	// MTProtoWebUntrusted a certificate no WebView accepts.
+	MTProtoWeb            bool   `json:"mtproto_web"`
+	MTProtoWebOnly        bool   `json:"mtproto_web_only"`
+	MTProtoWebHost        string `json:"mtproto_web_host"`
+	MTProtoWebUnsupported bool   `json:"mtproto_web_unsupported,omitempty"`
+	MTProtoWebUntrusted   bool   `json:"mtproto_web_untrusted,omitempty"`
 }
 
 // ConnectionsInfo reports the master's enabled protocols and their connection
@@ -141,6 +151,9 @@ func buildConnectionsStatus(set *model.Settings) *ConnectionsStatus {
 		MieruTransport:    model.MieruTransportOr(set.MieruTransport),
 		MTProtoPort:       set.MTProtoPort,
 		MTProtoDomain:     set.MTProtoDomainOr(),
+		MTProtoWeb:        set.MTProtoWeb,
+		MTProtoWebOnly:    set.MTProtoWebOnly,
+		MTProtoWebHost:    mtproto.WebHost(set.MTProtoWebCandidate()),
 		Protocols: []ConnInfo{
 			{
 				Key:         "vless",
@@ -234,18 +247,32 @@ func buildConnectionsStatus(set *model.Settings) *ConnectionsStatus {
 				Note:        "",
 				Enabled:     set.AWGEnabled,
 			},
-			{
-				Key:         "mtproto",
-				Name:        model.ProtoMTProto,
-				DisplayName: set.MTProtoName,
-				Transport:   "TCP (fake TLS)",
-				Security:    "MTProto + TLS",
-				Port:        awgPortLabel(set.MTProtoPort),
-				Note:        "",
-				Enabled:     set.MTProtoEnabled,
-			},
+			mtprotoConnInfo(set),
 		},
 	}
+}
+
+// mtprotoConnInfo is the MTProto row: the fake-TLS port, the WEB proxy on 443, or both.
+func mtprotoConnInfo(set *model.Settings) ConnInfo {
+	ci := ConnInfo{
+		Key:         "mtproto",
+		Name:        model.ProtoMTProto,
+		DisplayName: set.MTProtoName,
+		Transport:   "TCP (fake TLS)",
+		Security:    "MTProto + TLS",
+		Port:        awgPortLabel(set.MTProtoPort),
+		Enabled:     set.MTProtoEnabled,
+	}
+	if web := set.MTProtoWebHost(); web != "" {
+		if set.MTProtoFakeTLSOn() {
+			ci.Transport = "TCP (fake TLS) + WEB (HTTPS)"
+			ci.Port += ", 443"
+		} else {
+			ci.Transport, ci.Port = "WEB (HTTPS)", "443"
+		}
+		ci.Note = web
+	}
+	return ci
 }
 
 // awgPortLabel shows "—" for a lane with a port of its own (AmneziaWG, mieru) that has
@@ -383,6 +410,10 @@ type ConnectionsUpdate struct {
 	MTProtoPort        int    `json:"mtproto_port"`
 	MTProtoDomain      string `json:"mtproto_domain"`
 	MTProtoDomainReset bool   `json:"mtproto_domain_reset,omitempty"`
+	// The WEB proxy switches (nil keeps them): the proxy on, and only it — no fake-TLS
+	// port.
+	MTProtoWeb     *bool `json:"mtproto_web,omitempty"`
+	MTProtoWebOnly *bool `json:"mtproto_web_only,omitempty"`
 }
 
 // resolveObfs decides the Salamander key a save lands on: a freshly minted one when
@@ -619,6 +650,10 @@ func (m *Manager) ApplyConnections(u ConnectionsUpdate) error {
 	if err != nil {
 		return err
 	}
+	mtprotoWeb, mtprotoWebOnly, err := resolveMTProtoWeb(u.MTProtoWeb, u.MTProtoWebOnly, set.MTProtoWeb, set.MTProtoWebOnly, set)
+	if err != nil {
+		return err
+	}
 	for key, en := range u.Protocols {
 		if err := m.store.SetProtocolEnabled(key, en); err != nil {
 			return err
@@ -631,6 +666,9 @@ func (m *Manager) ApplyConnections(u ConnectionsUpdate) error {
 		return err
 	}
 	if err := m.store.SetMTProtoConfig(mtprotoPort, set.MTProtoName); err != nil {
+		return err
+	}
+	if err := m.store.SetMTProtoWeb(mtprotoWeb, mtprotoWebOnly); err != nil {
 		return err
 	}
 	if u.MTProtoDomainReset {

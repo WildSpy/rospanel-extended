@@ -1568,10 +1568,11 @@ func awgDeviceName(r *http.Request) string {
 }
 
 // serveTelegramQR draws one user's Telegram proxy link for one server as a QR code —
-// "<id>.png", id the server (0 = the master). As with AmneziaWG, a server without the
-// lane, or one the user may not use, is the decoy.
+// "<id>.png", id the server (0 = the master), "<id>-web.png" its WEB proxy. As with
+// AmneziaWG, a server without the lane, or one the user may not use, is the decoy.
 func (rt *Router) serveTelegramQR(w http.ResponseWriter, r *http.Request, u *model.User, set *model.Settings, rest string) {
 	name, ok := strings.CutSuffix(rest, ".png")
+	name, web := strings.CutSuffix(name, "-web")
 	serverID, err := strconv.ParseInt(name, 10, 64)
 	if !ok || err != nil || serverID < 0 {
 		rt.currentDecoy().ServeHTTP(w, r)
@@ -1584,11 +1585,19 @@ func (rt *Router) serveTelegramQR(w http.ResponseWriter, r *http.Request, u *mod
 	}
 	for i := range servers {
 		s := servers[i].Set
-		if s.ServerID != serverID || !link.MTProtoOn(s) || !servers[i].Access.AllowsBuiltin(serverID, model.LaneMTProto) {
+		on := link.MTProtoOn(s)
+		if web {
+			on = link.MTProtoWebProxyOn(s)
+		}
+		if s.ServerID != serverID || !on || !servers[i].Access.AllowsBuiltin(serverID, model.LaneMTProto) {
 			continue
 		}
 		// The t.me form: any scanner opens it in Telegram, where tg:// is left alone.
-		png, err := qrcode.Encode(link.MTProtoWeb(*u, s), qrcode.Medium, 512)
+		target := link.MTProtoWeb(*u, s)
+		if web {
+			target = link.MTProtoWebProxyWeb(*u, s)
+		}
+		png, err := qrcode.Encode(target, qrcode.Medium, 512)
 		if err != nil {
 			break
 		}

@@ -21,15 +21,16 @@ func (a *Agent) syncMTProto(cfg []byte, st *nodeapi.MTProtoState) {
 		users = append(users, mtproto.User{Email: c.Email, UUID: c.ID})
 	}
 	var l mtproto.Listen
-	if st != nil && st.Port > 0 {
-		l = mtproto.Listen{Port: st.Port, Domain: st.Domain, Front: st.Front}
+	if st != nil && (st.Port > 0 || st.Web != "") {
+		l = mtproto.Listen{Port: st.Port, Domain: st.Domain, Front: st.Front, Web: st.Web}
 	}
 	// Off Xray's ports and the front's, whatever the panel sent (see syncMieru).
 	var err error
+	// The WEB proxy is on the decoy, not on that port: it stays.
 	if tag, taken := xray.TCPListenerPortsRaw(cfg)[l.Port]; l.Port > 0 && taken {
-		l, err = mtproto.Listen{}, fmt.Errorf("mtproto: port %d is Xray's (%s); pick another", st.Port, tag)
+		l, err = mtproto.Listen{Web: l.Web}, fmt.Errorf("mtproto: port %d is Xray's (%s); pick another", st.Port, tag)
 	} else if l.Port > 0 && int64(l.Port) == a.frontPort.Load() {
-		l, err = mtproto.Listen{}, fmt.Errorf("mtproto: port %d is the TLS front's; pick another", st.Port)
+		l, err = mtproto.Listen{Web: l.Web}, fmt.Errorf("mtproto: port %d is the TLS front's; pick another", st.Port)
 	}
 	a.mtprotoMu.Lock()
 	defer a.mtprotoMu.Unlock()

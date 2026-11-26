@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -43,13 +44,43 @@ func (m *Manager) syncMTProto(set *model.Settings, cfg *xray.Config) {
 	}
 }
 
-// mtprotoClearOfXray is l, or off with an error when Xray listens on its port (see
-// mieruClearOfXray).
+// mtprotoClearOfXray is l, or its port off with an error when Xray listens there (see
+// mieruClearOfXray). The WEB proxy is on the site, not on that port: it stays.
 func mtprotoClearOfXray(l mtproto.Listen, xrayPorts map[int]string) (mtproto.Listen, error) {
 	if tag, taken := xrayPorts[l.Port]; l.Port > 0 && taken {
-		return mtproto.Listen{}, fmt.Errorf("mtproto: port %d is Xray's (%s); pick another", l.Port, tag)
+		return mtproto.Listen{Web: l.Web}, fmt.Errorf("mtproto: port %d is Xray's (%s); pick another", l.Port, tag)
 	}
 	return l, nil
+}
+
+// MTProtoWebHandler serves the master's WEB proxy (the bridge page and its carrier) in
+// front of next — the panel's own site — and passes everything else on.
+func (m *Manager) MTProtoWebHandler(next http.Handler) http.Handler {
+	if m.mtproto == nil {
+		return next
+	}
+	return m.mtproto.WebHandler(next)
+}
+
+// resolveMTProtoWeb settles the WEB proxy switches a save asked for: nil keeps what is
+// set (a caller that predates them), and the proxy needs the server's own domain on
+// the TCP-TLS lane's 443 (Settings.MTProtoWebCandidate of eff, the settings as saved).
+func resolveMTProtoWeb(web, only *bool, cur, curOnly bool, eff *model.Settings) (bool, bool, error) {
+	on, o := cur, curOnly
+	if web != nil {
+		on = *web
+	}
+	if only != nil {
+		o = *only
+	}
+	if !on {
+		return false, false, nil
+	}
+	if eff.MTProtoWebCandidate() == "" && (web != nil && *web && !cur) {
+		return false, false, invalidCode("err.mtprotoWebNoDomain",
+			"WEB-прокси Telegram нужен собственный домен сервера с TLS на порту 443 — укажите домен в настройках сервера")
+	}
+	return on, o, nil
 }
 
 // MTProtoListen is where a server's settings put its MTProto lane; off is a zero Listen.
@@ -58,9 +89,16 @@ func mtprotoClearOfXray(l mtproto.Listen, xrayPorts map[int]string) (mtproto.Lis
 // resolves to its address — and anything that is not a client is handed to the server's
 // own :443: the decoy, with its certificate. A domain an operator set to another site
 // hands strangers to that site.
+//
+// The WEB proxy, when on, answers on the server's own domain (Settings.MTProtoWebHost);
+// left to it alone, the lane has no port.
 func MTProtoListen(set *model.Settings) mtproto.Listen {
 	if !set.MTProtoEnabled || set.MTProtoPort <= 0 {
 		return mtproto.Listen{}
+	}
+	web := mtproto.WebHost(set.MTProtoWebHost())
+	if !set.MTProtoFakeTLSOn() {
+		return mtproto.Listen{Web: web}
 	}
 	domain, front := set.MTProtoDomainOr(), ""
 	if set.MTProtoOwnDomain(domain) && set.VLESSPort > 0 {
@@ -68,7 +106,7 @@ func MTProtoListen(set *model.Settings) mtproto.Listen {
 	} else if domain != "" {
 		front = net.JoinHostPort(domain, "443")
 	}
-	return mtproto.Listen{Port: set.MTProtoPort, Domain: domain, Front: front}
+	return mtproto.Listen{Port: set.MTProtoPort, Domain: domain, Front: front, Web: web}
 }
 
 // resolveMTProtoDomain checks a domain an operator entered for the lane: "" keeps the
@@ -101,7 +139,7 @@ func (m *Manager) MTProtoStatus() (running bool, lastErr string) {
 	if p := m.mtprotoErr.Load(); p != nil {
 		lastErr = *p
 	}
-	return m.mtproto.Listening().Port > 0, lastErr
+	return m.mtproto.Listening().Port > 0 || m.mtproto.WebHost() != "", lastErr
 }
 
 // StopMTProto closes the master's MTProto lane (shutdown).

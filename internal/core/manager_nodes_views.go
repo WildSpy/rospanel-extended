@@ -351,8 +351,13 @@ func (m *Manager) NodeLinkSettings() ([]*model.Settings, error) {
 		mtprotoDown := m.nodeMTProtoErr[n.ID] != ""
 		m.nodeGeoMu.Unlock()
 		ns.MieruEnabled = ns.MieruEnabled && n.ServesMieru && ns.MieruPort > 0 && !mieruDown
-		// The Telegram proxy likewise.
-		ns.MTProtoEnabled = ns.MTProtoEnabled && n.ServesMTProto && ns.MTProtoPort > 0 && !mtprotoDown
+		// The Telegram proxy likewise. Its WEB proxy needs the agent to answer it and a
+		// certificate the WebView trusts; it is on the site, so a fake-TLS listener that
+		// is down leaves it in — alone.
+		webOK := ns.MTProtoWeb && n.ServesMTProtoWeb && !ns.TLSInsecure
+		ns.MTProtoEnabled = ns.MTProtoEnabled && n.ServesMTProto && ns.MTProtoPort > 0 && (!mtprotoDown || webOK)
+		ns.MTProtoWeb = webOK
+		ns.MTProtoWebOnly = ns.MTProtoWebOnly || (webOK && mtprotoDown)
 		// Uniqueness is enforced on create/edit, but defend the subscription anyway:
 		// a duplicate label would collide Clash proxy names / sing-box tags and make a
 		// client reject the whole config. Disambiguate any collision with the node id.

@@ -89,6 +89,9 @@ const status: ConnectionsStatus = {
   mtproto_port: 20000,
   mtproto_domain: "",
   mtproto_running: false,
+  mtproto_web: false,
+  mtproto_web_only: false,
+  mtproto_web_host: "",
 };
 
 test("enabling AWG preserves the main connection settings", () => {

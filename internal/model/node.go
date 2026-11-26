@@ -108,8 +108,10 @@ type Node struct {
 	// MTProtoDomain is the name in the node's MTProto secrets, kept from the first time
 	// the lane ran (see Settings.MTProtoDomain).
 	MTProtoDomain string `json:"-"`
-	// ServesMTProto is ServesNaive for MTProto (nodeapi.SyncRequest.MTProto).
-	ServesMTProto bool `json:"-"`
+	// ServesMTProto is ServesNaive for MTProto (nodeapi.SyncRequest.MTProto), and
+	// ServesMTProtoWeb for its WEB proxy (nodeapi.SyncRequest.MTProtoWeb).
+	ServesMTProto    bool `json:"-"`
+	ServesMTProtoWeb bool `json:"-"`
 	// SeenIP is the address the node last reached the panel from (see SetNodeSeenIP).
 	SeenIP string `json:"-"`
 
@@ -220,6 +222,8 @@ type NodeConnections struct {
 	XHTTPName          string `json:"xhttp_name"`
 	MTProtoPort        int    `json:"mtproto_port"`
 	MTProtoName        string `json:"mtproto_name"`
+	MTProtoWeb         bool   `json:"mtproto_web,omitempty"`
+	MTProtoWebOnly     bool   `json:"mtproto_web_only,omitempty"`
 }
 
 // Joined reports whether the node has exchanged its join token for a permanent
@@ -250,6 +254,7 @@ type NodeStatusUpdate struct {
 	ServesMieru       bool
 	ServesAnyTLS      bool
 	ServesMTProto     bool
+	ServesMTProtoWeb  bool
 	ServesTrustTunnel bool
 	ServesXHTTP       bool
 }

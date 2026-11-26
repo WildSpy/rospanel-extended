@@ -125,6 +125,9 @@ func makeUserView(u model.User, set *model.Settings, userBotUsername string, cus
 	if link.MTProtoOn(set) && access.AllowsBuiltin(model.LocalNodeID, model.LaneMTProto) {
 		v.Links = append(v.Links, namedLink{set.ProtoLabelFor(model.ProtoMTProto, &u), link.MTProto(u, set)})
 	}
+	if link.MTProtoWebProxyOn(set) && access.AllowsBuiltin(model.LocalNodeID, model.LaneMTProto) {
+		v.Links = append(v.Links, namedLink{set.ProtoLabelFor(model.ProtoMTProto, &u) + " · WEB", link.MTProtoWebProxy(u, set)})
+	}
 	for _, in := range custom {
 		if !in.AllowsAccess(access) {
 			continue

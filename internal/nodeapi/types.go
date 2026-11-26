@@ -106,7 +106,10 @@ type SyncRequest struct {
 	// (MTProtoState), and MTProtoError is why its listener is not up, when it is not.
 	MTProto      bool   `json:"mtproto,omitempty"`
 	MTProtoError string `json:"mtproto_error,omitempty"`
-	XrayRunning  bool   `json:"xray_running"`
+	// MTProtoWeb ⇒ this agent also answers the WEB proxy of Telegram Desktop behind
+	// its decoy (MTProtoState.Web).
+	MTProtoWeb  bool `json:"mtproto_web,omitempty"`
+	XrayRunning bool `json:"xray_running"`
 	// UpdateError is why the self-update the operator asked for did not happen; empty
 	// once it does, or while there is nothing to report.
 	UpdateError string `json:"update_error,omitempty"`
@@ -607,6 +610,10 @@ type MTProtoState struct {
 	Port   int    `json:"port"`
 	Domain string `json:"domain"`
 	Front  string `json:"front"`
+	// Web is the host the node's WEB proxy answers on its own HTTPS site, "" for none;
+	// Port is then 0 when the lane is left to the WEB proxy alone. An agent that does
+	// not know it (SyncRequest.MTProtoWeb unset) ignores it.
+	Web string `json:"web,omitempty"`
 }
 
 // MieruState is one server's mieru listener.

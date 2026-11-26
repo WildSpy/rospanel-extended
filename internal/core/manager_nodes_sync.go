@@ -183,6 +183,7 @@ func (m *Manager) IngestNodeSync(n *model.Node, req nodeapi.SyncRequest) (*nodea
 		ServesTrustTunnel: req.TrustTunnel,
 		ServesXHTTP:       req.XHTTP,
 		ServesMTProto:     req.MTProto,
+		ServesMTProtoWeb:  req.MTProtoWeb,
 	})
 
 	if req.XrayRunning {

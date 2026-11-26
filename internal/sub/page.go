@@ -916,6 +916,16 @@ func buildPageData(u model.User, local *model.Settings, servers []Server, billin
 				QRURL:   fmt.Sprintf("%s/tg/%d.png", subURL, s.ServerID),
 			})
 		}
+		// The WEB proxy is Telegram Desktop's (7.1+) alone: a card of its own, so a phone
+		// user is not handed a link their app refuses.
+		if link.MTProtoWebProxyOn(s) && srv.allowsBuiltin(model.LaneMTProto) {
+			tgCards = append(tgCards, tgProxyCard{
+				Label:   tgProxyLabel(s) + " · WEB (Telegram Desktop)",
+				Link:    template.URL(link.MTProtoWebProxy(u, s)), // tg:// — as above
+				WebLink: link.MTProtoWebProxyWeb(u, s),
+				QRURL:   fmt.Sprintf("%s/tg/%d-web.png", subURL, s.ServerID),
+			})
+		}
 		if s.VLESSEnabled && srv.allowsBuiltin(model.LaneVLESS) {
 			protoLinks = append(protoLinks, protoLink{s.ProtoLabelFor(model.ProtoVLESS, &u), link.VLESS(u, s)})
 		}

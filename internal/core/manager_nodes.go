@@ -314,6 +314,10 @@ func (m *Manager) NodeConnectionsInfo(id int64) (*ConnectionsStatus, error) {
 	st.MTProtoError = m.nodeMTProtoErr[id]
 	m.nodeGeoMu.Unlock()
 	st.MTProtoRunning = n.ServesMTProto && st.MTProtoError == "" && derefBool(n.MTProtoEnabled)
+	// An agent that never said it answers the WEB proxy has not yet; a node that
+	// synced at all is one the operator can tell to update.
+	st.MTProtoWebUnsupported = n.LastSeen > 0 && !n.ServesMTProtoWeb
+	st.MTProtoWebUntrusted = n.CertSelfSigned
 	return st, nil
 }
 
@@ -487,6 +491,15 @@ func (m *Manager) ApplyNodeConnections(id int64, u ConnectionsUpdate) error {
 	if err != nil {
 		return err
 	}
+	var curWeb, curWebOnly bool
+	if n.Connections != nil {
+		curWeb, curWebOnly = n.Connections.MTProtoWeb, n.Connections.MTProtoWebOnly
+	}
+	mtprotoWeb, mtprotoWebOnly, err := resolveMTProtoWeb(u.MTProtoWeb, u.MTProtoWebOnly, curWeb, curWebOnly,
+		nodeSettings(masterSet, n))
+	if err != nil {
+		return err
+	}
 	if err := m.store.SetNodeProtocols(id,
 		u.Protocols["vless"], u.Protocols["hysteria2"], u.Protocols["reality"]); err != nil {
 		return err
@@ -592,6 +605,8 @@ func (m *Manager) ApplyNodeConnections(id int64, u ConnectionsUpdate) error {
 		XHTTPName:          connNames["xhttp"],
 		MTProtoPort:        mtprotoPort,
 		MTProtoName:        nodeMTProtoName(n),
+		MTProtoWeb:         mtprotoWeb,
+		MTProtoWebOnly:     mtprotoWebOnly,
 	}
 	if err := m.store.SetNodeConnections(id, blob); err != nil {
 		return err

@@ -368,7 +368,9 @@ func runServer(dataDir string) {
 	httpSrv := &http.Server{
 		// NaiveProxy and TrustTunnel tunnels arrive through the same fallback as the decoy
 		// (internal/naive).
-		Handler:           mgr.NaiveHandler(handler),
+		// The WEB proxy of Telegram Desktop answers on the panel's own site too, in front
+		// of the decoy; anything that does not authenticate there goes on untouched.
+		Handler:           mgr.NaiveHandler(mgr.MTProtoWebHandler(handler)),
 		Protocols:         protocols,
 		HTTP2:             naive.HTTP2Config(),
 		ReadHeaderTimeout: 10 * time.Second,  // slowloris: bound how long request headers may dribble in

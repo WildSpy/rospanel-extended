@@ -64,7 +64,7 @@ func (s *Store) readSettings() (*model.Settings, error) {
 	var probeBlock int
 	var routingCfg, subRulesJSON, subDPIJSON string
 	var reachCountries string
-	var mtprotoEn int
+	var mtprotoEn, mtprotoWeb, mtprotoWebOnly int
 	var masterHideFull, masterHideOver, awgEn, naiveEn, mieruEn, anytlsEn, ttEn, xhttpEn, hideOffline, subHappCrypt, subTGBind, subTGRebind, subShowClash, tgMailingSwitch, subPageEnabled int
 	var awgParamsJSON, connPolicyJSON string
 	var walletEn, refFirstOnly, winbackEn, churnSurvey, autoUpdateNodes, blacklistEn, planChange int
@@ -128,7 +128,7 @@ func (s *Store) readSettings() (*model.Settings, error) {
 		       anytls_enabled, anytls_name, trusttunnel_enabled, trusttunnel_name,
 		       xhttp_enabled, xhttp_name, xhttp_path,
 		       reach_countries, reach_probes, reach_every, reach_threshold, reach_token,
-		       mtproto_enabled, mtproto_port, mtproto_name, mtproto_domain,
+		       mtproto_enabled, mtproto_port, mtproto_name, mtproto_domain, mtproto_web, mtproto_web_only,
 		       sub_self_rotate, monthly_report_sent, sub_tg_rebind_hours, sub_page_enabled,
 		       sub_moved_to, sub_apps, sub_custom_apps, sub_app_links, sub_wizard_apps
 		FROM settings WHERE id = 1`,
@@ -193,7 +193,7 @@ func (s *Store) readSettings() (*model.Settings, error) {
 		&anytlsEn, &st.AnyTLSName, &ttEn, &st.TrustTunnelName,
 		&xhttpEn, &st.XHTTPName, &st.XHTTPPath,
 		&reachCountries, &st.Reach.Probes, &st.Reach.Every, &st.Reach.Threshold, &st.Reach.Token,
-		&mtprotoEn, &st.MTProtoPort, &st.MTProtoName, &st.MTProtoDomain,
+		&mtprotoEn, &st.MTProtoPort, &st.MTProtoName, &st.MTProtoDomain, &mtprotoWeb, &mtprotoWebOnly,
 		&st.SubSelfRotateHours, &st.MonthlyReportSent, &st.SubTGRebindHours, &subPageEnabled,
 		&st.SubMovedTo, &st.SubApps, &customAppsJSON, &appLinksJSON, &wizardAppsJSON,
 	)
@@ -229,6 +229,7 @@ func (s *Store) readSettings() (*model.Settings, error) {
 	st.TrustTunnelEnabled = ttEn != 0
 	st.XHTTPEnabled = xhttpEn != 0
 	st.MTProtoEnabled = mtprotoEn != 0
+	st.MTProtoWeb, st.MTProtoWebOnly = mtprotoWeb != 0, mtprotoWebOnly != 0
 	st.MieruTransport = model.MieruTransportOr(st.MieruTransport)
 	st.WalletEnabled = walletEn != 0
 	if billingPeriodsJSON != "" {
@@ -954,6 +955,13 @@ func (s *Store) SetMieruConfig(port int, transport, name string) error {
 func (s *Store) SetMTProtoConfig(port int, name string) error {
 	_, err := s.db.Exec(`UPDATE settings SET mtproto_port = ?, mtproto_name = ?,
 		updated_at = unixepoch() WHERE id = 1`, port, name)
+	return err
+}
+
+// SetMTProtoWeb persists the master's WEB proxy switches (see Settings.MTProtoWeb).
+func (s *Store) SetMTProtoWeb(on, only bool) error {
+	_, err := s.db.Exec(`UPDATE settings SET mtproto_web = ?, mtproto_web_only = ?,
+		updated_at = unixepoch() WHERE id = 1`, boolToInt(on), boolToInt(only))
 	return err
 }
 

@@ -70,13 +70,15 @@ type User struct {
 	UUID  string
 }
 
-// Listen is where and how the lane answers. A zero Port is off. Domain is the name in
-// the users' secrets — what their clients put in the SNI; Front is the host:port a
-// connection that is not a client of the lane is handed to.
+// Listen is where and how the lane answers. A zero Port is no fake-TLS listener. Domain
+// is the name in the users' secrets — what their clients put in the SNI; Front is the
+// host:port a connection that is not a client of the lane is handed to. Web is the host
+// the WEB proxy answers for on the server's own HTTPS site (WebHandler), "" for none.
 type Listen struct {
 	Port   int
 	Domain string
 	Front  string
+	Web    string
 }
 
 // Secret is a user's 16-byte proxy secret: derived from the UUID one way, so a link
@@ -112,6 +114,7 @@ type cred struct {
 	User
 	id     [16]byte
 	secret [16]byte
+	webCap string // the WEB bridge capability on the lane's host (webState)
 }
 
 type table struct {
@@ -135,6 +138,13 @@ type Server struct {
 	perUser  map[string]int
 	fronts   map[net.Conn]struct{} // connections handed to the front site, for Close
 
+	// The WEB proxy (web.go): what it answers for, the carrier tokens bridge pages were
+	// given, and the carriers open (with mu).
+	web        atomic.Pointer[webState]
+	tokens     webTokens
+	carriers   map[*carrier]struct{}
+	perUserWeb map[string]int
+
 	replay replayCache
 	seen   ipCache
 }
@@ -144,6 +154,7 @@ type Server struct {
 // Apply.
 func New(inner string) *Server {
 	s := &Server{sessions: map[*session]struct{}{}, perUser: map[string]int{}, fronts: map[net.Conn]struct{}{},
+		carriers: map[*carrier]struct{}{}, perUserWeb: map[string]int{},
 		slots: make(chan struct{}, maxHandshakes), fronted: make(chan struct{}, maxFronted)}
 	s.inner.Store(&inner)
 	s.users.Store(&table{byEmail: map[string]*cred{}})
@@ -166,6 +177,8 @@ func (s *Server) Apply(l Listen, addr string, users []User) error {
 		t.byEmail[u.Email] = c
 	}
 
+	web := newWebState(WebHost(l.Web), t)
+
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -175,6 +188,7 @@ func (s *Server) Apply(l Listen, addr string, users []User) error {
 		s.inner.Store(&addr)
 	}
 	s.users.Store(t)
+	prevWeb := s.web.Swap(web)
 	s.want = l
 	var old net.Listener
 	var err error
@@ -192,6 +206,15 @@ func (s *Server) Apply(l Listen, addr string, users []User) error {
 			gone = append(gone, ss)
 		}
 	}
+	// A carrier goes with its user, and all of them with the WEB lane or its host: their
+	// bridge pages authenticated against what is no longer there.
+	var goneWeb []*carrier
+	for c := range s.carriers {
+		u, ok := t.byEmail[c.user.Email]
+		if !ok || u.UUID != c.user.UUID || web == nil || web.host != c.host {
+			goneWeb = append(goneWeb, c)
+		}
+	}
 	s.mu.Unlock()
 	if old != nil {
 		_ = old.Close()
@@ -199,6 +222,14 @@ func (s *Server) Apply(l Listen, addr string, users []User) error {
 	for _, ss := range gone {
 		ss.close()
 	}
+	for _, c := range goneWeb {
+		c.kill()
+	}
+	prevHost := ""
+	if prevWeb != nil {
+		prevHost = prevWeb.host
+	}
+	logWebHost(prevHost, s.WebHost())
 	return err
 }
 
@@ -237,6 +268,11 @@ func (s *Server) Close() {
 	for c := range s.fronts {
 		fronts = append(fronts, c)
 	}
+	carriers := make([]*carrier, 0, len(s.carriers))
+	for c := range s.carriers {
+		carriers = append(carriers, c)
+	}
+	s.web.Store(nil)
 	s.mu.Unlock()
 	if ln != nil {
 		_ = ln.Close()
@@ -246,6 +282,9 @@ func (s *Server) Close() {
 	}
 	for _, c := range fronts {
 		_ = c.Close()
+	}
+	for _, c := range carriers {
+		c.kill()
 	}
 }
 
@@ -538,8 +577,11 @@ func (s *Server) untrack(ss *session) {
 	}
 }
 
-// serve carries the client's stream to the data centre it asked for, through Xray.
-func (s *Server) serve(c net.Conn, rc *recordConn, u *cred, dc int, recv, send cipher.Stream) {
+// serve carries the client's stream to the data centre it asked for, through Xray. c is
+// the connection the session is ended through and named by (its address goes to Xray);
+// rc carries the obfuscated bytes — fake TLS records on the lane's port, one logical
+// stream of a WEB carrier (see web.go).
+func (s *Server) serve(c net.Conn, rc io.ReadWriter, u *cred, dc int, recv, send cipher.Stream) {
 	ss := &session{user: u.User, client: c}
 	if !s.track(ss) {
 		_ = c.Close()
