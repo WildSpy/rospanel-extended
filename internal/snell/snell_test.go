@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -295,6 +296,54 @@ func TestFailedRequestIsLogged(t *testing.T) {
 			t.Fatalf("v%d: the line does not name the user and port:\n%s", cfg.Version, got)
 		}
 		s.Close()
+	}
+}
+
+// A v6 client sends its request with the app's first bytes, so a socket an app opened
+// ahead of time is silent until used: it must still work when the app comes to it, and
+// one never used is closed after handshakeTimeout without a line in the log.
+func TestSilentEarlyConnection(t *testing.T) {
+	if handshakeTimeout < time.Minute {
+		t.Fatalf("handshakeTimeout %v cuts the sockets Surge and Shadowrocket open ahead of time", handshakeTimeout)
+	}
+	var out syncBuffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&out, nil)))
+	saved := handshakeTimeout
+	handshakeTimeout = 2 * time.Second
+	t.Cleanup(func() { slog.SetDefault(prev); handshakeTimeout = saved })
+
+	x := newFakeXray(t)
+	ports := freePorts(t, 1)
+	cfg := Config{Version: V6, Mode: ModeDefault}
+	s := New(x.addr())
+	defer s.Close()
+	if err := s.Apply(cfg, "", []User{{Email: "u1", UUID: uuidA, Port: ports[0]}}); err != nil {
+		t.Fatal(err)
+	}
+	c, err := snellv6.NewClient(snellv6.ClientOptions{PSK: []byte(uuidA), Mode: snellv6.ModeDefault})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Used after a silence shorter than the timeout: works.
+	conn := c.DialEarlyConn(dial(t, ports[0]), M.ParseSocksaddrHostPort("example.com", 80))
+	time.Sleep(time.Second)
+	if _, err := conn.Write([]byte("late")); err != nil {
+		t.Fatal(err)
+	}
+	got := make([]byte, 4)
+	if _, err := io.ReadFull(conn, got); err != nil || string(got) != "late" {
+		t.Fatalf("early connection used after a silence: %q %v", got, err)
+	}
+	// Never used: closed by the server, quietly.
+	idle := dial(t, ports[0])
+	_ = idle.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if _, err := idle.Read(make([]byte, 1)); err == nil || errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Fatalf("a silent connection was not closed by the server: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if strings.Contains(out.String(), "snell: request failed") {
+		t.Fatalf("an unused socket was logged:\n%s", out.String())
 	}
 }
 

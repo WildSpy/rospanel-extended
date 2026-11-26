@@ -22,6 +22,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -68,9 +69,14 @@ type User struct {
 	Port  int
 }
 
+// handshakeTimeout bounds how long a new connection may stay silent before its request.
+// Long on purpose: a Surge or Shadowrocket v6 client sends the request with the first
+// bytes the app writes (early data), so a socket an app opened ahead of time — a
+// browser warming one up — says nothing until it is used. Cut sooner, it is dead when
+// the app comes to it. maxConnsPerPort bounds what silent connections can hold.
+var handshakeTimeout = 5 * time.Minute
+
 const (
-	// handshakeTimeout bounds how long a new connection may take to send its request.
-	handshakeTimeout = 15 * time.Second
 	// maxConnsPerPort bounds the connections one port holds open; a Snell client keeps
 	// a small pool of them.
 	maxConnsPerPort = 512
@@ -402,11 +408,12 @@ func (p *port) serve(c net.Conn) {
 }
 
 // quiet reports whether a connection's end is not worth a line: the client went away
-// (a port check that connects and leaves, a pool closing an idle session) or the port
-// was closed under it.
+// (a port check that connects and leaves, a pool closing an idle session), a socket
+// opened ahead of time was never used (handshakeTimeout), or the port was closed
+// under it.
 func quiet(err error) bool {
 	return errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.ECONNRESET) ||
-		errors.Is(err, syscall.EPIPE)
+		errors.Is(err, syscall.EPIPE) || errors.Is(err, os.ErrDeadlineExceeded)
 }
 
 // warnEvery bounds the lines a port logs: one, then the next after this long with how
