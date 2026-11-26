@@ -32,6 +32,10 @@ func (m *Manager) syncHostFW(set *model.Settings, cfg *xray.Config) {
 	if l := MTProtoListen(set); l.Port > 0 {
 		s.Ports = append(s.Ports, hostfw.TCP(l.Port))
 	}
+	// Snell: the range its users' ports take, as the last sync put them.
+	if set.SnellEnabled {
+		s.Ports = append(s.Ports, m.snellHostPorts()...)
+	}
 	for _, p := range m.turn.Ports() {
 		s.Ports = append(s.Ports, hostfw.UDP(p))
 	}

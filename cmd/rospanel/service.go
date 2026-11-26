@@ -429,6 +429,7 @@ func runServer(dataDir string) {
 	sup.Stop()
 	mgr.StopAWG()
 	mgr.StopMieru()
+	mgr.StopSnell()
 	mgr.StopMTProto()
 	mgr.StopTurn()
 
@@ -595,6 +596,7 @@ func statsPollLoop(mgr *core.Manager) func(context.Context) {
 				}
 			})
 			safeTick("mieru retry", mgr.RetryMieru)
+			safeTick("snell retry", mgr.RetrySnell)
 			safeTick("mtproto retry", mgr.RetryMTProto)
 			safeTick("turn relay retry", mgr.RetryTurn)
 			safeTick("awg retry", mgr.RetryAWG)

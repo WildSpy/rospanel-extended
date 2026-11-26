@@ -98,6 +98,19 @@ type ConnectionsStatus struct {
 	MTProtoWebHost        string `json:"mtproto_web_host"`
 	MTProtoWebUnsupported bool   `json:"mtproto_web_unsupported,omitempty"`
 	MTProtoWebUntrusted   bool   `json:"mtproto_web_untrusted,omitempty"`
+
+	// Snell (see internal/snell): the generation and its option, where its ports start,
+	// and — for the master, whose listeners are here — how many of its users' ports
+	// listen and the last error. A node's SnellUnsupported is an agent too old for it.
+	SnellVersion     int    `json:"snell_version"`
+	SnellObfs        string `json:"snell_obfs"`
+	SnellObfsHost    string `json:"snell_obfs_host"`
+	SnellMode        string `json:"snell_mode"`
+	SnellPortBase    int    `json:"snell_port_base"`
+	SnellListening   int    `json:"snell_listening"`
+	SnellUsers       int    `json:"snell_users"`
+	SnellError       string `json:"snell_error,omitempty"`
+	SnellUnsupported bool   `json:"snell_unsupported,omitempty"`
 }
 
 // ConnectionsInfo reports the master's enabled protocols and their connection
@@ -111,6 +124,7 @@ func (m *Manager) ConnectionsInfo() (*ConnectionsStatus, error) {
 	st.AWGRunning, st.AWGError = m.AWGStatus()
 	st.MieruRunning, st.MieruError = m.MieruStatus()
 	st.MTProtoRunning, st.MTProtoError = m.MTProtoStatus()
+	st.SnellListening, st.SnellUsers, st.SnellError = m.SnellStatus()
 	return st, nil
 }
 
@@ -154,6 +168,11 @@ func buildConnectionsStatus(set *model.Settings) *ConnectionsStatus {
 		MTProtoWeb:        set.MTProtoWeb,
 		MTProtoWebOnly:    set.MTProtoWebOnly,
 		MTProtoWebHost:    mtproto.WebHost(set.MTProtoWebCandidate()),
+		SnellVersion:      model.SnellVersionOr(set.SnellVersion),
+		SnellObfs:         model.SnellObfsOr(set.SnellObfs),
+		SnellObfsHost:     set.SnellObfsHost,
+		SnellMode:         model.SnellModeOr(set.SnellMode),
+		SnellPortBase:     model.SnellPortBaseOr(set.SnellPortBase),
 		Protocols: []ConnInfo{
 			{
 				Key:         "vless",
@@ -237,6 +256,7 @@ func buildConnectionsStatus(set *model.Settings) *ConnectionsStatus {
 				Note:        "",
 				Enabled:     set.MieruEnabled,
 			},
+			snellConnInfo(set),
 			{
 				Key:         "awg",
 				Name:        model.ProtoAWG,
@@ -250,6 +270,25 @@ func buildConnectionsStatus(set *model.Settings) *ConnectionsStatus {
 			mtprotoConnInfo(set),
 		},
 	}
+}
+
+// snellConnInfo is the Snell row: the generation, its option, and the first port (each
+// user has one of their own from it on).
+func snellConnInfo(set *model.Settings) ConnInfo {
+	ci := ConnInfo{
+		Key:         "snell",
+		Name:        model.ProtoSnell,
+		DisplayName: set.SnellName,
+		Security:    "AES-128-GCM",
+		Port:        strconv.Itoa(model.SnellPortBaseOr(set.SnellPortBase)) + "+",
+		Enabled:     set.SnellEnabled,
+	}
+	if model.SnellVersionOr(set.SnellVersion) == model.SnellV6 {
+		ci.Transport, ci.Note = "TCP (Snell v6)", model.SnellModeOr(set.SnellMode)
+	} else {
+		ci.Transport, ci.Note = "TCP (Snell v5)", "obfs "+model.SnellObfsOr(set.SnellObfs)
+	}
+	return ci
 }
 
 // mtprotoConnInfo is the MTProto row: the fake-TLS port, the WEB proxy on 443, or both.
@@ -322,6 +361,7 @@ var connNameKeys = []struct{ key, proto string }{
 	{"awg", model.ProtoAWG},
 	{"naive", model.ProtoNaive},
 	{"mieru", model.ProtoMieru},
+	{"snell", model.ProtoSnell},
 	{"anytls", model.ProtoAnyTLS},
 	{"trusttunnel", model.ProtoTrustTunnel},
 	{"xhttp", model.ProtoXHTTP},
@@ -414,6 +454,15 @@ type ConnectionsUpdate struct {
 	// port.
 	MTProtoWeb     *bool `json:"mtproto_web,omitempty"`
 	MTProtoWebOnly *bool `json:"mtproto_web_only,omitempty"`
+
+	// Snell: the generation (5 or 6; 0 = keep), its v5 obfuscation and the host the
+	// clients name in it (nil = keep, "" = the default), its v6 mode, and the first
+	// port (0 = keep).
+	SnellVersion  int     `json:"snell_version,omitempty"`
+	SnellObfs     string  `json:"snell_obfs,omitempty"`
+	SnellObfsHost *string `json:"snell_obfs_host,omitempty"`
+	SnellMode     string  `json:"snell_mode,omitempty"`
+	SnellPortBase int     `json:"snell_port_base,omitempty"`
 }
 
 // resolveObfs decides the Salamander key a save lands on: a freshly minted one when
@@ -654,6 +703,22 @@ func (m *Manager) ApplyConnections(u ConnectionsUpdate) error {
 	if err != nil {
 		return err
 	}
+	snellHeld := snellHeldOn(withConnPorts(*set, u, awgPort), localCustom)
+	if u.Protocols["mtproto"] && mtprotoPort > 0 {
+		snellHeld.HoldTCP(mtprotoPort, "MTProto")
+	}
+	if u.Protocols["mieru"] && mieruPort > 0 {
+		snellHeld.HoldTCP(mieruPort, "mieru")
+	}
+	maxSlot, err := m.store.MaxSnellSlot()
+	if err != nil {
+		return err
+	}
+	snellVersion, snellObfs, snellObfsHost, snellMode, snellBase, err := resolveSnell(u.SnellVersion, u.SnellObfs, u.SnellObfsHost,
+		u.SnellMode, u.SnellPortBase, set, u.Protocols["snell"], snellHeld, maxSlot)
+	if err != nil {
+		return err
+	}
 	for key, en := range u.Protocols {
 		if err := m.store.SetProtocolEnabled(key, en); err != nil {
 			return err
@@ -669,6 +734,9 @@ func (m *Manager) ApplyConnections(u ConnectionsUpdate) error {
 		return err
 	}
 	if err := m.store.SetMTProtoWeb(mtprotoWeb, mtprotoWebOnly); err != nil {
+		return err
+	}
+	if err := m.store.SetSnellConfig(snellVersion, snellObfs, snellObfsHost, snellMode, snellBase, connNames["snell"]); err != nil {
 		return err
 	}
 	if u.MTProtoDomainReset {

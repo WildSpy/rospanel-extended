@@ -379,6 +379,18 @@ export interface ConnectionsStatus {
   mtproto_web_host: string
   mtproto_web_unsupported?: boolean
   mtproto_web_untrusted?: boolean
+  // Snell v5/v6: the generation and its option (obfs for 5, mode for 6), the first of
+  // the users' ports, and — the master's own, or a node's last report — how many of
+  // them listen and why some do not. A node's agent too old for it is unsupported.
+  snell_version: number
+  snell_obfs: string
+  snell_obfs_host: string
+  snell_mode: string
+  snell_port_base: number
+  snell_listening: number
+  snell_users: number
+  snell_error?: string
+  snell_unsupported?: boolean
 }
 
 export interface AWGParams {
@@ -451,6 +463,12 @@ export interface ConnectionsUpdate {
   // The WEB proxy switches; left out, the server keeps what it has.
   mtproto_web?: boolean
   mtproto_web_only?: boolean
+  // Snell: 0 / "" keep what the server has; snell_obfs_host "" is the default host.
+  snell_version?: number
+  snell_obfs?: string
+  snell_obfs_host?: string
+  snell_mode?: string
+  snell_port_base?: number
 }
 
 export const applyConnections = (u: ConnectionsUpdate) =>
@@ -1536,6 +1554,7 @@ export const SUB_PROTOS = [
   'naive',
   'anytls',
   'mieru',
+  'snell',
   'trusttunnel',
   'awg',
   'custom',

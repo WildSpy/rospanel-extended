@@ -111,6 +111,9 @@ type UserRow struct {
 	// WGExtra are the user's devices' keys on those inbounds, each a peer after the
 	// main one. An agent older than them ignores the field.
 	WGExtra []AWGPeerKey `json:"wg_extra,omitempty"`
+	// SnellSlot is the user's Snell slot (SnellState.Slots) when the node's Snell lane
+	// lets them in. An agent older than it ignores the field.
+	SnellSlot int `json:"snell_slot,omitempty"`
 }
 
 // AWGPeerKey is one extra AmneziaWG peer of a user: a public key and its tunnel

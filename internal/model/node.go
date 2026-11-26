@@ -110,8 +110,11 @@ type Node struct {
 	MTProtoDomain string `json:"-"`
 	// ServesMTProto is ServesNaive for MTProto (nodeapi.SyncRequest.MTProto), and
 	// ServesMTProtoWeb for its WEB proxy (nodeapi.SyncRequest.MTProtoWeb).
-	ServesMTProto    bool `json:"-"`
-	ServesMTProtoWeb bool `json:"-"`
+	ServesMTProto    bool  `json:"-"`
+	ServesMTProtoWeb bool  `json:"-"`
+	SnellEnabled     *bool `json:"snell_enabled"`
+	// ServesSnell is ServesNaive for Snell (nodeapi.SyncRequest.Snell).
+	ServesSnell bool `json:"-"`
 	// SeenIP is the address the node last reached the panel from (see SetNodeSeenIP).
 	SeenIP string `json:"-"`
 
@@ -224,6 +227,12 @@ type NodeConnections struct {
 	MTProtoName        string `json:"mtproto_name"`
 	MTProtoWeb         bool   `json:"mtproto_web,omitempty"`
 	MTProtoWebOnly     bool   `json:"mtproto_web_only,omitempty"`
+	SnellVersion       int    `json:"snell_version,omitempty"`
+	SnellObfs          string `json:"snell_obfs,omitempty"`
+	SnellObfsHost      string `json:"snell_obfs_host,omitempty"`
+	SnellMode          string `json:"snell_mode,omitempty"`
+	SnellPortBase      int    `json:"snell_port_base,omitempty"`
+	SnellName          string `json:"snell_name,omitempty"`
 }
 
 // Joined reports whether the node has exchanged its join token for a permanent
@@ -257,6 +266,7 @@ type NodeStatusUpdate struct {
 	ServesMTProtoWeb  bool
 	ServesTrustTunnel bool
 	ServesXHTTP       bool
+	ServesSnell       bool
 }
 
 // URLHost is host as it goes before ":port" or into a URL: an IPv6 literal in

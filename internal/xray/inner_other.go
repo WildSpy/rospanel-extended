@@ -13,4 +13,5 @@ const (
 	MTProtoInnerAddr     = "127.0.0.1:18448"
 	TrustTunnelInnerAddr = "127.0.0.1:18450"
 	XHTTPInnerAddr       = "127.0.0.1:18451"
+	SnellInnerAddr       = "127.0.0.1:18452"
 )

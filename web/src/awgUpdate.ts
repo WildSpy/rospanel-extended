@@ -49,5 +49,10 @@ export function buildAwgConnectionsUpdate(
     mieru_transport: status.mieru_transport,
     mtproto_port: status.mtproto_port,
     mtproto_domain: status.mtproto_domain,
+    snell_version: status.snell_version,
+    snell_obfs: status.snell_obfs,
+    snell_obfs_host: status.snell_obfs_host,
+    snell_mode: status.snell_mode,
+    snell_port_base: status.snell_port_base,
   };
 }

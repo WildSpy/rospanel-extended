@@ -164,3 +164,36 @@ func TestBannedAddresses(t *testing.T) {
 		t.Errorf("bans after lifting: %v", st.Meta.BannedIPs)
 	}
 }
+
+// A split state's skeleton carries the Snell lane without its slots; Assemble puts
+// them back from the rows.
+func TestAssembleSnellSlots(t *testing.T) {
+	skel, _ := json.Marshal(nodeapi.Skeleton{
+		Config: json.RawMessage(`{"inbounds":[{"tag":"snell-in","protocol":"vless","settings":{"clients":[],"decryption":"none"}}]}`),
+		Slots:  []nodeapi.UserSlot{{Inbound: 0, Kind: "vless"}},
+		Meta:   nodeapi.NodeMeta{Snell: &nodeapi.SnellState{Version: 6, Mode: "unshaped", PortBase: 40000}},
+	})
+	h := &Held{Tag: "t1", Skeleton: skel, Blocked: json.RawMessage(`{}`)}
+	h.Rows = append(h.Rows,
+		row(t, nodeapi.UserRow{ID: 2, UUID: "uuid", Slots: []int{0}, SnellSlot: 5}),
+		row(t, nodeapi.UserRow{ID: 4, UUID: "uuid", Slots: []int{0}}))
+	h.Hash = nodeapi.ContentHash(h.Skeleton, h.Rows, h.Blocked)
+	p, err := Decode(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := Assemble(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sn := st.Meta.Snell
+	if sn == nil || sn.Version != 6 || sn.Mode != "unshaped" || sn.PortBase != 40000 {
+		t.Fatalf("lane: %+v", sn)
+	}
+	if len(sn.Slots) != 1 || sn.Slots["u2"] != 5 {
+		t.Fatalf("slots: %v", sn.Slots)
+	}
+	if p.Skeleton.Meta.Snell.Slots != nil {
+		t.Fatal("Assemble wrote into the held skeleton")
+	}
+}

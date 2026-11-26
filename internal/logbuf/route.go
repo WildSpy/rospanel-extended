@@ -34,7 +34,7 @@ var serverPrefixes = []string{
 	"initial reconcile failed", "user sync", "routing:", "reality:", "REALITY:",
 	"tls:", "tls reload:", "TLS not ready yet:", "tlsfront:", "http80:", "decoy:",
 	"opera:", "warp:", "awg:", "awg poll:", "wireguard:", "turn ", "turn relay:",
-	"mieru:", "mtproto:", "anytls:", "cascade:", "proxypool:", "geo:", "iplist:",
+	"mieru:", "snell:", "mtproto:", "anytls:", "cascade:", "proxypool:", "geo:", "iplist:",
 	"hop:", "port-hopping setup failed", "connguard", "conntrack:", "hostfw:",
 	"ipblock:", "brute-guard:", "shaper:", "bbr:", "memory:", "systemd:",
 }

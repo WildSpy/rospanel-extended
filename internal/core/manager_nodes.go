@@ -318,6 +318,10 @@ func (m *Manager) NodeConnectionsInfo(id int64) (*ConnectionsStatus, error) {
 	// synced at all is one the operator can tell to update.
 	st.MTProtoWebUnsupported = n.LastSeen > 0 && !n.ServesMTProtoWeb
 	st.MTProtoWebUntrusted = n.CertSelfSigned
+	m.nodeGeoMu.Lock()
+	st.SnellError = m.nodeSnellErr[id]
+	m.nodeGeoMu.Unlock()
+	st.SnellUnsupported = n.LastSeen > 0 && !n.ServesSnell
 	return st, nil
 }
 
@@ -500,6 +504,26 @@ func (m *Manager) ApplyNodeConnections(id int64, u ConnectionsUpdate) error {
 	if err != nil {
 		return err
 	}
+	snellOn, snellAsked := u.Protocols["snell"]
+	if !snellAsked {
+		snellOn = derefBool(n.SnellEnabled)
+	}
+	snellHeld := snellHeldOn(withConnPorts(*nodeSettings(masterSet, n), u, awgPort), nodeCustom)
+	if mtprotoOn && mtprotoPort > 0 {
+		snellHeld.HoldTCP(mtprotoPort, "MTProto")
+	}
+	if mieruOn && mieruPort > 0 {
+		snellHeld.HoldTCP(mieruPort, "mieru")
+	}
+	maxSlot, err := m.store.MaxSnellSlot()
+	if err != nil {
+		return err
+	}
+	snellVersion, snellObfs, snellObfsHost, snellMode, snellBase, err := resolveSnell(u.SnellVersion, u.SnellObfs, u.SnellObfsHost,
+		u.SnellMode, u.SnellPortBase, nodeSettings(masterSet, n), snellOn, snellHeld, maxSlot)
+	if err != nil {
+		return err
+	}
 	if err := m.store.SetNodeProtocols(id,
 		u.Protocols["vless"], u.Protocols["hysteria2"], u.Protocols["reality"]); err != nil {
 		return err
@@ -535,6 +559,11 @@ func (m *Manager) ApplyNodeConnections(id int64, u ConnectionsUpdate) error {
 	}
 	if mtprotoAsked {
 		if err := m.store.SetNodeMTProtoEnabled(id, mtprotoOn); err != nil {
+			return err
+		}
+	}
+	if snellAsked {
+		if err := m.store.SetNodeSnellEnabled(id, snellOn); err != nil {
 			return err
 		}
 	}
@@ -607,6 +636,12 @@ func (m *Manager) ApplyNodeConnections(id int64, u ConnectionsUpdate) error {
 		MTProtoName:        nodeMTProtoName(n),
 		MTProtoWeb:         mtprotoWeb,
 		MTProtoWebOnly:     mtprotoWebOnly,
+		SnellVersion:       snellVersion,
+		SnellObfs:          snellObfs,
+		SnellObfsHost:      snellObfsHost,
+		SnellMode:          snellMode,
+		SnellPortBase:      snellBase,
+		SnellName:          connNames["snell"],
 	}
 	if err := m.store.SetNodeConnections(id, blob); err != nil {
 		return err

@@ -80,6 +80,7 @@ func (m *Manager) GroupTargets() ([]GroupTarget, error) {
 			{model.LaneTrustTunnel, s.ProtoLabel(model.ProtoTrustTunnel), model.BuiltinToken(id, model.LaneTrustTunnel), s.TrustTunnelEnabled},
 			{model.LaneAnyTLS, s.ProtoLabel(model.ProtoAnyTLS), model.BuiltinToken(id, model.LaneAnyTLS), s.AnyTLSEnabled},
 			{model.LaneMieru, s.ProtoLabel(model.ProtoMieru), model.BuiltinToken(id, model.LaneMieru), s.MieruEnabled},
+			{model.LaneSnell, s.ProtoLabel(model.ProtoSnell), model.BuiltinToken(id, model.LaneSnell), s.SnellEnabled},
 			{model.LaneAWG, s.ProtoLabel(model.ProtoAWG), model.BuiltinToken(id, model.LaneAWG), s.AWGEnabled},
 			{model.LaneMTProto, s.ProtoLabel(model.ProtoMTProto), model.BuiltinToken(id, model.LaneMTProto), s.MTProtoEnabled},
 		}
@@ -135,7 +136,7 @@ func sanitizeGrants(tokens []string) []string {
 		} else if _, lane, isBuiltin := model.ParseBuiltinToken(t); isBuiltin {
 			ok = lane == model.LaneVLESS || lane == model.LaneReality || lane == model.LaneHysteria || lane == model.LaneAWG ||
 				lane == model.LaneNaive || lane == model.LaneMieru || lane == model.LaneAnyTLS || lane == model.LaneMTProto ||
-				lane == model.LaneTrustTunnel || lane == model.LaneXHTTP
+				lane == model.LaneTrustTunnel || lane == model.LaneXHTTP || lane == model.LaneSnell
 		}
 		if ok {
 			seen[t] = true

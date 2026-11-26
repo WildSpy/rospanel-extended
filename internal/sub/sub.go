@@ -30,7 +30,7 @@ import (
 // enabled built-in lanes first, then each custom inbound in its display order.
 // Protocols switched off in the Connections panel are omitted.
 func ShareLinks(u model.User, srv Server) []string {
-	return shareLinks(u, srv, linkForms{naive: link.Naive, mieru: true, anytls: true, trusttunnel: link.TrustTunnel, vlessEnc: true})
+	return shareLinks(u, srv, linkForms{naive: link.Naive, mieru: true, anytls: true, snell: true, trusttunnel: link.TrustTunnel, vlessEnc: true})
 }
 
 // linkForms are the per-client link forms of the lanes not every client reads; a nil
@@ -40,6 +40,7 @@ type linkForms struct {
 	awg    func(model.User, *model.Settings) string
 	mieru  bool // the client imports mierus:// (MieruLinkFor)
 	anytls bool // the client imports anytls:// (AnyTLSLinkFor)
+	snell  bool // the client imports snell:// (SnellLinkFor)
 	// trusttunnel: the tt:// form the client imports (trustTunnelLinkFor)
 	trusttunnel func(model.User, *model.Settings) string
 	// vlessEnc: the client hands a vless:// link's encryption to a core that speaks it
@@ -80,6 +81,9 @@ func shareLinks(u model.User, srv Server, f linkForms) []string {
 	}
 	if f.mieru && link.MieruOn(set) && srv.allowsBuiltin(model.LaneMieru) {
 		links = append(links, link.Mieru(u, set))
+	}
+	if f.snell && link.SnellOn(set, &u) && srv.allowsBuiltin(model.LaneSnell) {
+		links = append(links, link.Snell(u, set))
 	}
 	if f.trusttunnel != nil && link.TrustTunnelOn(set) && srv.allowsBuiltin(model.LaneTrustTunnel) {
 		links = append(links, f.trusttunnel(u, set))
@@ -142,8 +146,8 @@ func ShareLinksRule(u model.User, servers []Server, userAgent string, o Override
 // (Hiddify, NyameBox): the Xray form, which the Xray JSON profile is built from.
 func shareLinksRule(u model.User, servers []Server, userAgent string, o Overrides, dropPinned func(model.Inbound) bool) []string {
 	f := o.links(linkForms{naive: NaiveLinkFor(userAgent), mieru: MieruLinkFor(userAgent), awg: awgLinkFor(userAgent),
-		anytls: AnyTLSLinkFor(userAgent), trusttunnel: trustTunnelLinkFor(userAgent), vlessEnc: VLESSEncLinkFor(userAgent),
-		dropPinned: dropPinned})
+		anytls: AnyTLSLinkFor(userAgent), snell: SnellLinkFor(userAgent), trusttunnel: trustTunnelLinkFor(userAgent),
+		vlessEnc: VLESSEncLinkFor(userAgent), dropPinned: dropPinned})
 	var links []string
 	for _, srv := range servers {
 		links = append(links, shareLinks(u, srv, f)...)

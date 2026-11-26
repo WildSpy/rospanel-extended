@@ -108,8 +108,12 @@ type SyncRequest struct {
 	MTProtoError string `json:"mtproto_error,omitempty"`
 	// MTProtoWeb ⇒ this agent also answers the WEB proxy of Telegram behind
 	// its decoy (MTProtoState.Web).
-	MTProtoWeb  bool `json:"mtproto_web,omitempty"`
-	XrayRunning bool `json:"xray_running"`
+	MTProtoWeb bool `json:"mtproto_web,omitempty"`
+	// Snell ⇒ this agent answers Snell on its users' ports (SnellState), and
+	// SnellError is why some of them do not listen, when they do not.
+	Snell       bool   `json:"snell,omitempty"`
+	SnellError  string `json:"snell_error,omitempty"`
+	XrayRunning bool   `json:"xray_running"`
 	// UpdateError is why the self-update the operator asked for did not happen; empty
 	// once it does, or while there is nothing to report.
 	UpdateError string `json:"update_error,omitempty"`
@@ -602,6 +606,22 @@ type NodeMeta struct {
 	// MTProto is where the node's Telegram proxy listens; nil ⇒ the lane is off on this
 	// node. Its users are mtproto-in's clients in the Xray config. See internal/mtproto.
 	MTProto *MTProtoState `json:"mtproto,omitempty"`
+
+	// Snell is how the node's Snell lane answers; nil ⇒ the lane is off on this node.
+	// Its users are snell-in's clients in the Xray config, each on the port of their
+	// slot. See internal/snell.
+	Snell *SnellState `json:"snell,omitempty"`
+}
+
+// SnellState is one server's Snell lane: the generation and its option, where the
+// ports start, and each user's slot (port = PortBase + slot - 1) by email. A split
+// state's skeleton carries no Slots: they come with the rows (UserRow.SnellSlot).
+type SnellState struct {
+	Version  int            `json:"version"`
+	Obfs     string         `json:"obfs,omitempty"`
+	Mode     string         `json:"mode,omitempty"`
+	PortBase int            `json:"port_base"`
+	Slots    map[string]int `json:"slots,omitempty"`
 }
 
 // MTProtoState is one server's Telegram proxy listener: the port, the domain its

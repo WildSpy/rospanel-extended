@@ -953,6 +953,9 @@ func buildPageData(u model.User, local *model.Settings, servers []Server, billin
 		if link.MieruOn(s) && srv.allowsBuiltin(model.LaneMieru) {
 			protoLinks = append(protoLinks, protoLink{s.ProtoLabelFor(model.ProtoMieru, &u), link.Mieru(u, s)})
 		}
+		if link.SnellOn(s, &u) && srv.allowsBuiltin(model.LaneSnell) {
+			protoLinks = append(protoLinks, protoLink{s.ProtoLabelFor(model.ProtoSnell, &u), link.Snell(u, s)})
+		}
 		for _, in := range srv.Custom {
 			if !srv.allowsInbound(in) {
 				continue

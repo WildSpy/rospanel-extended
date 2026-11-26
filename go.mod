@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/pion/dtls/v3 v3.1.15
 	github.com/pion/transport/v5 v5.1.5
-	github.com/sagernet/sing v0.9.6
+	github.com/sagernet/sing v0.9.7-0.20261124055526-8badbba80825
 	github.com/sagernet/sing-anytls v0.0.0-20260928104022-580984e4d8cb
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/tetratelabs/wazero v1.12.0
@@ -33,6 +33,7 @@ require (
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/sagernet/sing-snell v0.0.0-20261125221246-3f5050388f83 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
 	gvisor.dev/gvisor v0.0.0-20250606233247-e3c4c4cad86f // indirect

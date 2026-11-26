@@ -26,6 +26,7 @@ import (
 	"github.com/Shu1t3/rospanel-shu1t3/internal/nodeapi"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/opera"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/shaper"
+	"github.com/Shu1t3/rospanel-shu1t3/internal/snell"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/store"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/sysstat"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/turnrelay"
@@ -416,6 +417,8 @@ type Manager struct {
 	nodeComponents map[int64][]nodeapi.ComponentStatus
 	// nodeMieruErr is each node's last-reported mieru listener error ("" ⇒ fine).
 	nodeMieruErr map[int64]string
+	// nodeSnellErr is nodeMieruErr for the Snell lane.
+	nodeSnellErr map[int64]string
 	// nodeMTProtoErr is nodeMieruErr for the MTProto lane.
 	nodeMTProtoErr map[int64]string
 	// nodeUpdateErr is why each node's requested self-update did not happen, as it last
@@ -474,6 +477,12 @@ type Manager struct {
 	// error ("" when it listens or is off).
 	mieru    *mieru.Server
 	mieruErr atomic.Pointer[string]
+	// snell is the master's Snell lane (internal/snell), snellErr its listeners' last
+	// error ("" when every port listens or the lane is off), snellPorts the users it
+	// was last given (for the host firewall).
+	snell      *snell.Server
+	snellErr   atomic.Pointer[string]
+	snellPorts atomic.Pointer[[]snell.User]
 	// mtproto is the master's Telegram proxy (internal/mtproto), mtprotoErr its
 	// listener's last error ("" ⇒ fine).
 	mtproto    *mtproto.Server
@@ -575,6 +584,7 @@ func New(st *store.Store, sup *xray.Supervisor, opts xray.Options, tls TLSPaths,
 		xhttp:          xhttpfront.New(),
 		trusttunnel:    naive.NewTrustTunnel(xray.TrustTunnelInnerAddr),
 		mieru:          mieru.New(xray.MieruInnerAddr),
+		snell:          snell.New(xray.SnellInnerAddr),
 		mtproto:        mtproto.New(xray.MTProtoInnerAddr),
 		turn:           turnrelay.New(),
 		probeBlock:     ipblock.New(ipblock.TableProbes),
@@ -1170,6 +1180,7 @@ func (m *Manager) syncUsers(ws *workingSet, wsErr error) (bool, error) {
 	// A user added here may have no tunnel identity yet, and a WireGuard inbound they are
 	// allowed on needs one to hold them.
 	wgUsers, _, _ := m.claimWireGuard(users, custom, opts.Access)
+	wgUsers, _, _ = m.claimSnell(set.SnellEnabled, wgUsers)
 
 	apiAddr := m.sup.APIAddr()
 	if len(removedEmails) > 0 {
@@ -1215,6 +1226,7 @@ func (m *Manager) syncUsers(ws *workingSet, wsErr error) (bool, error) {
 	m.syncAWGLocked(set, users)
 	m.syncNaive(cfg)
 	m.syncMieru(set, cfg)
+	m.syncSnell(set, cfg, wgUsers)
 	m.syncMTProto(set, cfg)
 	m.syncAnyTLS(cfg)
 	m.syncXHTTP(set, cfg)
@@ -1276,6 +1288,7 @@ func (m *Manager) reconcileLocked() error {
 		return err
 	}
 	wgUsers, _, _ := m.claimWireGuard(users, opts.Custom, opts.Access)
+	wgUsers, _, _ = m.claimSnell(set.SnellEnabled, wgUsers)
 	cfg, err := xray.Generate(set, wgUsers, opts, m.getProxies())
 	if err != nil {
 		logErr("reconcile: config generation failed", "err", err)
@@ -1295,6 +1308,7 @@ func (m *Manager) reconcileLocked() error {
 	m.syncAWGLocked(set, users)
 	m.syncNaive(cfg)
 	m.syncMieru(set, cfg)
+	m.syncSnell(set, cfg, wgUsers)
 	m.syncMTProto(set, cfg)
 	m.syncAnyTLS(cfg)
 	m.syncXHTTP(set, cfg)

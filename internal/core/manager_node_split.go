@@ -133,7 +133,7 @@ func diffNodeInputs(a, b *nodeInputs) ([]int64, bool) {
 			j++
 		default:
 			x, y := &a.users[i], &b.users[j]
-			if x.UUID != y.UUID || x.Password != y.Password || x.WGPrivateKey != y.WGPrivateKey || x.AWGSlot != y.AWGSlot ||
+			if x.UUID != y.UUID || x.Password != y.Password || x.WGPrivateKey != y.WGPrivateKey || x.AWGSlot != y.AWGSlot || x.SnellSlot != y.SnellSlot ||
 				!slices.Equal(x.AWGDevices, y.AWGDevices) {
 				touched[x.ID] = struct{}{}
 			}
@@ -394,6 +394,11 @@ func encodeSkeleton(sc *xray.SplitConfig, meta nodeapi.NodeMeta) (json.RawMessag
 		tunnel.Peers = nil
 		meta.AWG = &tunnel
 	}
+	if meta.Snell != nil {
+		sn := *meta.Snell
+		sn.Slots = nil
+		meta.Snell = &sn
+	}
 	return json.Marshal(nodeapi.Skeleton{Config: cfg, Slots: sc.Slots, Meta: meta})
 }
 
@@ -428,6 +433,9 @@ func splitRows(sc *xray.SplitConfig, users []model.User, meta nodeapi.NodeMeta, 
 			continue
 		}
 		row := nodeapi.UserRow{ID: u.ID, Slots: slots, Speed: speed[email]}
+		if meta.Snell != nil {
+			row.SnellSlot = meta.Snell.Slots[email]
+		}
 		for _, si := range slots {
 			need := xray.SlotNeeds(sc.Slots[si])
 			if need.UUID {

@@ -16,7 +16,7 @@ const userCols = `id, name, uuid, password, sub_token, enabled,
 	plan_id, trial_used, tg_link_code, tg_link_code_at, notified_status,
 	notified_expire_at, notified_quota_at, device_over_since, note, tags, wg_private_key,
 	abuse_action, abuse_until, abuse_prev_speed, abuse_warned_day, hold_seconds, awg_slot,
-	extra_devices, pack_data, hook_expire_at, hook_quota_at, hook_expire_stage, mailing_off, lang, hwid_limit`
+	extra_devices, pack_data, hook_expire_at, hook_quota_at, hook_expire_stage, mailing_off, lang, hwid_limit, snell_slot`
 
 // Lookups by a column whose index is partial. SQLite uses a partial index only when
 // the query's own WHERE implies the index's, and to the planner "sub_token = ?" does
@@ -803,7 +803,7 @@ func (s *Store) WorkingSet(now int64) (ids []int64, caps map[int64]int, err erro
 
 // WorkingCredentials is WorkingUsers for building a proxy config: the same users in
 // the same order, each carrying only what a config is made of — ID, UUID, Password,
-// WGPrivateKey, AWGSlot, AWGDevices and the HWIDLimit that caps them. Every other
+// WGPrivateKey, AWGSlot, AWGDevices, the HWIDLimit that caps them and SnellSlot. Every other
 // field is zero, and no status is derived.
 //
 // A node asks for its config twice a poll and again on every wake, and the master
@@ -812,7 +812,7 @@ func (s *Store) WorkingSet(now int64) (ids []int64, caps map[int64]int, err erro
 // these few columns take ~4ms.
 func (s *Store) WorkingCredentials(now int64) ([]model.User, error) {
 	rows, err := s.db.Query(`WITH device_count AS (`+deviceCountCTE+`)
-		SELECT u.id, u.uuid, u.password, u.wg_private_key, u.awg_slot, u.hwid_limit FROM users u `+workingUsersWhere+`
+		SELECT u.id, u.uuid, u.password, u.wg_private_key, u.awg_slot, u.hwid_limit, u.snell_slot FROM users u `+workingUsersWhere+`
 		ORDER BY u.id ASC`, workingUsersArgs(now)...)
 	if err != nil {
 		return nil, err
@@ -824,12 +824,12 @@ func (s *Store) WorkingCredentials(now int64) ([]model.User, error) {
 	type cred struct {
 		id                 int64
 		uuid, password, wg string
-		slot, hwid         int
+		slot, hwid, snell  int
 	}
 	var creds []cred
 	for rows.Next() {
 		var c cred
-		if err := rows.Scan(&c.id, &c.uuid, &c.password, &c.wg, &c.slot, &c.hwid); err != nil {
+		if err := rows.Scan(&c.id, &c.uuid, &c.password, &c.wg, &c.slot, &c.hwid, &c.snell); err != nil {
 			return nil, err
 		}
 		creds = append(creds, c)
@@ -839,7 +839,7 @@ func (s *Store) WorkingCredentials(now int64) ([]model.User, error) {
 	}
 	out := make([]model.User, len(creds))
 	for i, c := range creds {
-		out[i] = model.User{ID: c.id, UUID: c.uuid, Password: decField(c.password), WGPrivateKey: decField(c.wg), AWGSlot: c.slot, HWIDLimit: c.hwid}
+		out[i] = model.User{ID: c.id, UUID: c.uuid, Password: decField(c.password), WGPrivateKey: decField(c.wg), AWGSlot: c.slot, HWIDLimit: c.hwid, SnellSlot: c.snell}
 	}
 	return out, s.attachAWGDevices(out)
 }
@@ -1248,6 +1248,72 @@ func (s *Store) ClaimUsersAWG(claims []AWGClaim, first, last int) (map[int64]AWG
 				}
 			}
 			out[c.UserID] = AWGIdentity{Key: decField(key), Slot: slot}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// MaxSnellSlot is the highest Snell slot held: how far every server's Snell range
+// reaches from its base.
+func (s *Store) MaxSnellSlot() (int, error) {
+	var n int
+	err := s.rdb.QueryRow(`SELECT COALESCE(MAX(snell_slot), 0) FROM users`).Scan(&n)
+	return n, err
+}
+
+// ClaimSnellSlots gives each of ids that has none the lowest free Snell slot (1 up),
+// and returns the slot each ends up with; a user deleted meanwhile is left out. A slot
+// is the user's place in every server's Snell port range (model.SnellPortFor), held
+// for as long as the user exists, so a link they imported keeps its port. One
+// transaction, so two servers claiming at once never hand out a slot twice.
+func (s *Store) ClaimSnellSlots(ids []int64) (map[int64]int, error) {
+	out := make(map[int64]int, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	err := s.withTx(func(tx *sql.Tx) error {
+		used := map[int]bool{}
+		rows, err := tx.Query(`SELECT snell_slot FROM users WHERE snell_slot > 0`)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var v int
+			if err := rows.Scan(&v); err != nil {
+				rows.Close()
+				return err
+			}
+			used[v] = true
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		next := 1
+		for _, id := range ids {
+			var slot int
+			err := tx.QueryRow(`SELECT snell_slot FROM users WHERE id = ?`, id).Scan(&slot)
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if slot == 0 {
+				for used[next] {
+					next++
+				}
+				if _, err := tx.Exec(`UPDATE users SET snell_slot = ? WHERE id = ? AND snell_slot = 0`, next, id); err != nil {
+					return err
+				}
+				slot = next
+				used[next] = true
+			}
+			out[id] = slot
 		}
 		return nil
 	})
@@ -1741,7 +1807,7 @@ func (s *Store) queryUsersOn(db *sql.DB, query string, args ...any) ([]model.Use
 			&u.NotifiedExpireAt, &u.NotifiedQuotaAt, &u.DeviceOverSince, &u.Note, &tags, &u.WGPrivateKey,
 			&u.AbuseAction, &u.AbuseUntil, &u.AbusePrevSpeed, &u.AbuseWarnedDay, &u.HoldSeconds, &u.AWGSlot,
 			&u.ExtraDevices, &u.PackData, &u.HookExpireAt, &u.HookQuotaAt, &u.HookExpireStage, &mailingOff, &u.Lang,
-			&u.HWIDLimit,
+			&u.HWIDLimit, &u.SnellSlot,
 		); err != nil {
 			return nil, err
 		}

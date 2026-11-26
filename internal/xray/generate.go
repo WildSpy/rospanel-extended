@@ -445,6 +445,12 @@ func Generate(set *model.Settings, users []model.User, opts Options, proxies map
 		listen, port := innerLaneListen(MTProtoInnerAddr, inbounds)
 		inbounds = append(inbounds, innerInbound(TagMTProto, listen, port, laneClients(set.MTProtoEnabled, model.LaneMTProto, users, opts.allowsBuiltin), sniff))
 	}
+	// Snell (a port per user, see internal/snell): each tunnel enters here on its
+	// user's UUID.
+	if set.SnellEnabled {
+		listen, port := innerLaneListen(SnellInnerAddr, inbounds)
+		inbounds = append(inbounds, innerInbound(TagSnell, listen, port, laneClients(set.SnellEnabled, model.LaneSnell, users, opts.allowsBuiltin), sniff))
+	}
 
 	routing := compileRouting(expandGroups(rc, opts.Groups), order, warpActive, operaActive, active, unusable,
 		relayPlans, groupExpander(opts.Groups), opts.Bridges, scopes, append(reverseRules, hopRules...))
@@ -469,10 +475,10 @@ func Generate(set *model.Settings, users []model.User, opts Options, proxies map
 				StatsOutboundUplink: true, StatsOutboundDownlink: true,
 			},
 		},
-		DNS:       dns,
-		Inbounds:  inbounds,
-		Outbounds: outbounds,
-		Routing:   routing,
+		DNS:         dns,
+		Inbounds:    inbounds,
+		Outbounds:   outbounds,
+		Routing:     routing,
 		Observatory: observatory,
 	}, nil
 }
@@ -650,6 +656,7 @@ const (
 	TagAnyTLS      = "anytls-in"
 	TagMTProto     = "mtproto-in"
 	TagXHTTP       = "xhttp-in"
+	TagSnell       = "snell-in"
 )
 
 // ProtoWireGuard is Xray's name for the protocol of a WireGuard inbound, TURN-VK's and
@@ -791,6 +798,13 @@ func NaiveClientsRaw(data []byte) ([]VLESSClient, string) { return InnerClientsR
 
 // MieruClientsRaw is MieruClients for a config as JSON.
 func MieruClientsRaw(data []byte) ([]VLESSClient, string) { return InnerClientsRaw(data, TagMieru) }
+
+// SnellClients are snell-in's clients in cfg — who internal/snell lets in — and the
+// address it listens on ("" when the lane is off).
+func SnellClients(cfg *Config) ([]VLESSClient, string) { return InnerClients(cfg, TagSnell) }
+
+// SnellClientsRaw is SnellClients for a config as JSON.
+func SnellClientsRaw(data []byte) ([]VLESSClient, string) { return InnerClientsRaw(data, TagSnell) }
 
 // AnyTLSClients are anytls-in's clients in cfg — who internal/anytls lets in — and the
 // address it listens on ("" when the lane is off).
@@ -1298,6 +1312,10 @@ func UserInbounds(set *model.Settings, custom []model.Inbound, users []model.Use
 		listen, port := InnerListen(MTProtoInnerAddr)
 		in = append(in, Inbound{Tag: TagMTProto, Listen: listen, Port: port, Protocol: "vless", Settings: VLESSInboundSettings{Clients: tc, Decryption: "none"}})
 	}
+	if sc := laneClients(set.SnellEnabled, model.LaneSnell, users, allowBuiltin); len(sc) > 0 {
+		listen, port := InnerListen(SnellInnerAddr)
+		in = append(in, Inbound{Tag: TagSnell, Listen: listen, Port: port, Protocol: "vless", Settings: VLESSInboundSettings{Clients: sc, Decryption: "none"}})
+	}
 	if len(users) == 0 {
 		return in
 	}
@@ -1401,6 +1419,9 @@ func EnabledInboundTags(set *model.Settings, custom []model.Inbound) []string {
 	}
 	if set.MTProtoEnabled {
 		tags = append(tags, TagMTProto)
+	}
+	if set.SnellEnabled {
+		tags = append(tags, TagSnell)
 	}
 	for _, c := range custom {
 		if c.Protocol == model.InbHysteria || model.IsWireGuard(c.Protocol) {

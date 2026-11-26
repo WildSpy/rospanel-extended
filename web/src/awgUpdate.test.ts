@@ -92,6 +92,13 @@ const status: ConnectionsStatus = {
   mtproto_web: false,
   mtproto_web_only: false,
   mtproto_web_host: "",
+  snell_version: 6,
+  snell_obfs: "none",
+  snell_obfs_host: "cdn.example.com",
+  snell_mode: "unshaped",
+  snell_port_base: 41000,
+  snell_listening: 0,
+  snell_users: 0,
 };
 
 test("enabling AWG preserves the main connection settings", () => {
@@ -132,4 +139,8 @@ test("enabling AWG preserves the main connection settings", () => {
   assert.equal(update.block_quic, true);
   assert.equal(update.mieru_port, 19001);
   assert.equal(update.mieru_transport, "TCP");
+  assert.equal(update.snell_version, 6);
+  assert.equal(update.snell_obfs_host, "cdn.example.com");
+  assert.equal(update.snell_mode, "unshaped");
+  assert.equal(update.snell_port_base, 41000);
 });

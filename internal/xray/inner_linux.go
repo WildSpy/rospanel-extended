@@ -12,4 +12,5 @@ const (
 	MTProtoInnerAddr     = "@rospanel-mtproto"
 	TrustTunnelInnerAddr = "@rospanel-trusttunnel"
 	XHTTPInnerAddr       = "@rospanel-xhttp"
+	SnellInnerAddr       = "@rospanel-snell"
 )

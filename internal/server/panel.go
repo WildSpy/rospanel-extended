@@ -121,6 +121,9 @@ func makeUserView(u model.User, set *model.Settings, userBotUsername string, cus
 	if link.MieruOn(set) && access.AllowsBuiltin(model.LocalNodeID, model.LaneMieru) {
 		v.Links = append(v.Links, namedLink{set.ProtoLabelFor(model.ProtoMieru, &u), link.Mieru(u, set)})
 	}
+	if link.SnellOn(set, &u) && access.AllowsBuiltin(model.LocalNodeID, model.LaneSnell) {
+		v.Links = append(v.Links, namedLink{set.ProtoLabelFor(model.ProtoSnell, &u), link.Snell(u, set)})
+	}
 	// The Telegram proxy: the link that adds it to Telegram, not a VPN client's.
 	if link.MTProtoOn(set) && access.AllowsBuiltin(model.LocalNodeID, model.LaneMTProto) {
 		v.Links = append(v.Links, namedLink{set.ProtoLabelFor(model.ProtoMTProto, &u), link.MTProto(u, set)})
@@ -183,6 +186,12 @@ func (rt *Router) applyTLSHints(set *model.Settings) {
 	if set.MieruEnabled {
 		if up, _ := rt.mgr.MieruStatus(); !up {
 			set.MieruEnabled = false
+		}
+	}
+	// Snell: its ports are one per user, so the lane goes only when none of them is up.
+	if set.SnellEnabled {
+		if up, users, _ := rt.mgr.SnellStatus(); users > 0 && up == 0 {
+			set.SnellEnabled = false
 		}
 	}
 	// The Telegram proxy likewise.

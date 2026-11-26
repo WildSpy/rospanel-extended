@@ -53,6 +53,7 @@ func (o Overrides) links(f linkForms) linkForms {
 	}
 	f.mieru = f.mieru || o.on(model.LaneMieru)
 	f.anytls = f.anytls || o.on(model.LaneAnyTLS)
+	f.snell = f.snell || o.on(model.LaneSnell)
 	if o.on(model.LaneTrustTunnel) && f.trusttunnel == nil {
 		f.trusttunnel = link.TrustTunnel
 	}
@@ -114,8 +115,9 @@ func Protocols(format, userAgent string, o Overrides) map[string]bool {
 		p[model.SubProtoVLESSEnc] = o.enc(VLESSEncLinkFor(userAgent) || xrayCoreHasVLESSEnc(userAgent))
 	default:
 		f := o.links(linkForms{naive: NaiveLinkFor(userAgent), mieru: MieruLinkFor(userAgent), awg: awgLinkFor(userAgent),
-			anytls: AnyTLSLinkFor(userAgent), trusttunnel: trustTunnelLinkFor(userAgent), vlessEnc: VLESSEncLinkFor(userAgent)})
-		p[model.LaneNaive], p[model.LaneAWG] = f.naive != nil, f.awg != nil
+			anytls: AnyTLSLinkFor(userAgent), snell: SnellLinkFor(userAgent), trusttunnel: trustTunnelLinkFor(userAgent),
+			vlessEnc: VLESSEncLinkFor(userAgent)})
+		p[model.LaneNaive], p[model.LaneAWG], p[model.LaneSnell] = f.naive != nil, f.awg != nil, f.snell
 		p[model.LaneMieru], p[model.LaneAnyTLS], p[model.SubProtoVLESSEnc] = f.mieru, f.anytls, f.vlessEnc
 		p[model.LaneTrustTunnel] = f.trusttunnel != nil
 	}

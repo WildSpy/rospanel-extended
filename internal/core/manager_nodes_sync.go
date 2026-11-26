@@ -136,6 +136,10 @@ func (m *Manager) IngestNodeSync(n *model.Node, req nodeapi.SyncRequest) (*nodea
 		m.nodeMieruErr = map[int64]string{}
 	}
 	m.nodeMieruErr[n.ID] = req.MieruError
+	if m.nodeSnellErr == nil {
+		m.nodeSnellErr = map[int64]string{}
+	}
+	m.nodeSnellErr[n.ID] = req.SnellError
 	if m.nodeMTProtoErr == nil {
 		m.nodeMTProtoErr = map[int64]string{}
 	}
@@ -179,6 +183,7 @@ func (m *Manager) IngestNodeSync(n *model.Node, req nodeapi.SyncRequest) (*nodea
 		ConfigHash:        req.ConfigHash,
 		ServesNaive:       req.Naive,
 		ServesMieru:       req.Mieru,
+		ServesSnell:       req.Snell,
 		ServesAnyTLS:      req.AnyTLS,
 		ServesTrustTunnel: req.TrustTunnel,
 		ServesXHTTP:       req.XHTTP,

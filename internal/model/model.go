@@ -34,6 +34,7 @@ const (
 	ProtoAnyTLS      = "ANYTLS"
 	ProtoTrustTunnel = "TRUSTTUNNEL"
 	ProtoMTProto     = "MTPROTO"
+	ProtoSnell       = "SNELL"
 )
 
 // DeviceOnlineWindow is how long (seconds) a source IP counts as an active device.
@@ -193,6 +194,10 @@ type User struct {
 	// same on every server; 0 until their tunnel key is first needed. Handed out, not
 	// derived from the id, so a panel's user ids can grow past the subnet's size.
 	AWGSlot int `json:"-"`
+	// SnellSlot is the user's place in every server's Snell port range (SnellPort), the
+	// same on every server; 0 until first handed out. Handed out, not derived from the
+	// id, so the range stays as long as the user list, not as its history.
+	SnellSlot int `json:"-"`
 	// AWGDevices are the user's extra AmneziaWG keys (AWGDevice), loaded where peers
 	// are built from users; nil elsewhere.
 	AWGDevices []AWGKey `json:"-"`
@@ -317,8 +322,8 @@ type TariffPlan struct {
 	DeviceLimit int    `json:"device_limit"`
 	// HWIDLimit is the HWID limit the plan gives (see User.HWIDLimit): -1 none, 0 the
 	// panel default, N. Bought devices are added to it as to DeviceLimit.
-	HWIDLimit   int    `json:"hwid_limit"`
-	SpeedLimit  int    `json:"speed_limit"` // kbit/s, 0 = unlimited
+	HWIDLimit  int `json:"hwid_limit"`
+	SpeedLimit int `json:"speed_limit"` // kbit/s, 0 = unlimited
 	// ResetPeriod is the plan's own quota-refill cycle: daily | weekly | monthly |
 	// yearly, or "" for the derived default — a free plan refills every plan duration
 	// (a rolling days:N), a paid one runs its quota over the whole period it was
@@ -1074,6 +1079,17 @@ type Settings struct {
 	MieruPort      int    `json:"-"`
 	MieruTransport string `json:"-"`
 
+	// Snell v5/v6 (internal/snell): a port per user from SnellPortBase on (SnellPort),
+	// each keyed by the user's UUID. Version 5 takes SnellObfs (none/http/tls, with
+	// SnellObfsHost for the clients), version 6 SnellMode (default/unshaped). A node's
+	// switch is its own (Node.SnellEnabled); the rest rides in NodeConnections.
+	SnellEnabled  bool   `json:"-"`
+	SnellVersion  int    `json:"-"`
+	SnellObfs     string `json:"-"`
+	SnellObfsHost string `json:"-"`
+	SnellMode     string `json:"-"`
+	SnellPortBase int    `json:"-"`
+
 	// VLESS-XHTTP-TLS (internal/xhttpfront): on XHTTPPath behind the decoy on the
 	// VLESS-TCP-TLS port, with its domain and certificate, on each user's UUID. The path
 	// is one for the fleet; a node's switch is its own (Node.XHTTPEnabled).
@@ -1281,6 +1297,7 @@ type Settings struct {
 	XHTTPName       string `json:"-"`
 	TrustTunnelName string `json:"-"`
 	MTProtoName     string `json:"-"`
+	SnellName       string `json:"-"`
 
 	// Anti-DPI / anti-censorship transport hardening (Settings → Connections).
 	// TLSFragment / BlockQUIC shape the GENERATED client configs (sing-box only —
@@ -2287,6 +2304,8 @@ func (s *Settings) ProtoLabelFor(proto string, u *User) string {
 		custom = s.TrustTunnelName
 	case ProtoMTProto:
 		custom = s.MTProtoName
+	case ProtoSnell:
+		custom = s.SnellName
 	}
 	label := proto
 	if custom = strings.TrimSpace(custom); custom != "" {
@@ -2707,3 +2726,84 @@ const MinXHTTPPathLen = 16
 // XHTTPOn reports whether the VLESS-XHTTP-TLS lane runs: switched on, with a path. The
 // path is the lane's address behind the decoy, so without one there is nothing to route.
 func (s *Settings) XHTTPOn() bool { return s.XHTTPEnabled && s.XHTTPPath != "" }
+
+// Snell generations, v5 obfuscations and v6 modes (Settings.Snell*, NodeConnections),
+// as internal/snell names them.
+const (
+	SnellV5           = 5
+	SnellV6           = 6
+	SnellObfsNone     = "none"
+	SnellObfsHTTP     = "http"
+	SnellObfsTLS      = "tls"
+	SnellModeDefault  = "default"
+	SnellModeUnshaped = "unshaped"
+	// SnellObfsHostDefault is the host a v5 client's obfuscation names when none is set.
+	SnellObfsHostDefault = "www.bing.com"
+	// SnellPortBaseDefault is where a server's Snell ports start when none was chosen:
+	// above Linux's ephemeral range (32768–60999), where an outgoing connection could
+	// hold a port at the moment its listener starts, and clear of the panel's other
+	// pick ranges — room for 4535 users; a larger panel sets a base of its own.
+	SnellPortBaseDefault = 61000
+)
+
+// SnellVersionOr is a stored Snell generation, 5 for anything but 6.
+func SnellVersionOr(v int) int {
+	if v == SnellV6 {
+		return SnellV6
+	}
+	return SnellV5
+}
+
+// SnellObfsOr is a stored v5 obfuscation, none for anything unknown.
+func SnellObfsOr(v string) string {
+	switch v {
+	case SnellObfsHTTP, SnellObfsTLS:
+		return v
+	}
+	return SnellObfsNone
+}
+
+// SnellModeOr is a stored v6 mode, default for anything unknown. unsafe-raw has no key,
+// so it could not tell users apart, and is never one.
+func SnellModeOr(v string) string {
+	if v == SnellModeUnshaped {
+		return v
+	}
+	return SnellModeDefault
+}
+
+// SnellObfsHostOr is the host a v5 client's obfuscation names.
+func SnellObfsHostOr(v string) string {
+	if v = strings.TrimSpace(v); v != "" {
+		return v
+	}
+	return SnellObfsHostDefault
+}
+
+// SnellPortBaseOr is a server's first Snell port.
+func SnellPortBaseOr(v int) int {
+	if v > 0 && v <= 65535 {
+		return v
+	}
+	return SnellPortBaseDefault
+}
+
+// SnellPortFor is the port of the user in slot on a server whose ports start at base:
+// 0 for a user with no slot yet, or one past the last port.
+func SnellPortFor(base, slot int) int {
+	if slot <= 0 {
+		return 0
+	}
+	if p := SnellPortBaseOr(base) + slot - 1; p <= 65535 {
+		return p
+	}
+	return 0
+}
+
+// SnellPort is u's Snell port on the server set describes, 0 when they have none there.
+func (s *Settings) SnellPort(u *User) int {
+	if s == nil || u == nil || !s.SnellEnabled {
+		return 0
+	}
+	return SnellPortFor(s.SnellPortBase, u.SnellSlot)
+}

@@ -22,11 +22,12 @@ const (
 	// LaneTrustTunnel is TrustTunnel through the decoy on :443 (internal/naive, tt.go).
 	LaneTrustTunnel = "trusttunnel"
 	LaneMTProto     = "mtproto" // Telegram proxy on a port of its own (internal/mtproto)
+	LaneSnell       = "snell"   // Snell v5/v6 on a port per user (internal/snell)
 )
 
 // BuiltinLaneKeys lists the built-in lane keys in display order (distinct from
 // BuiltinLanes(), which is the egress-lane set — an unrelated concept).
-var BuiltinLaneKeys = []string{LaneVLESS, LaneXHTTP, LaneReality, LaneHysteria, LaneNaive, LaneTrustTunnel, LaneAnyTLS, LaneMieru, LaneAWG, LaneMTProto}
+var BuiltinLaneKeys = []string{LaneVLESS, LaneXHTTP, LaneReality, LaneHysteria, LaneNaive, LaneTrustTunnel, LaneAnyTLS, LaneMieru, LaneSnell, LaneAWG, LaneMTProto}
 
 // Group is a named set of connections a user is allowed to use. Membership is
 // many-to-many; a user in no group may use everything (see Access).

@@ -351,6 +351,10 @@ func (m *Manager) NodeLinkSettings() ([]*model.Settings, error) {
 		mtprotoDown := m.nodeMTProtoErr[n.ID] != ""
 		m.nodeGeoMu.Unlock()
 		ns.MieruEnabled = ns.MieruEnabled && n.ServesMieru && ns.MieruPort > 0 && !mieruDown
+		// Snell needs the agent to answer it. Its ports are one per user, so a few that
+		// could not listen do not take the lane from everyone (the error is on the
+		// Connections screen).
+		ns.SnellEnabled = ns.SnellEnabled && n.ServesSnell
 		// The Telegram proxy likewise. Its WEB proxy needs the agent to answer it and a
 		// certificate the WebView trusts; it is on the site, so a fake-TLS listener that
 		// is down leaves it in — alone.

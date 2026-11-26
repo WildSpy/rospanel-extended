@@ -78,6 +78,10 @@ type Anti = { fragment: boolean; min13: boolean; blockQuic: boolean };
 type Awg = { port: number; dns: string };
 type Mieru = { port: number; transport: string };
 type MTProto = { port: number; domain: string; web: boolean; webOnly: boolean };
+// Snell: the generation, its v5 obfuscation (and the host clients name in it), its v6
+// mode, and the first of the users' ports.
+type Snell = { version: number; obfs: string; obfsHost: string; mode: string; base: number };
+const SNELL_DEFAULT: Snell = { version: 5, obfs: "none", obfsHost: "", mode: "default", base: 0 };
 
 // ConnectionsEditor is the full connection editor (protocols on/off + names +
 // fingerprints + ports + hop + WS + REALITY donor/keys/regen/port/anti-replay +
@@ -152,6 +156,7 @@ export function ConnectionsEditor({
   const [regenAwg, setRegenAwg] = useState(false);
   const [mieruCfg, setMieruCfg] = useState<Mieru>({ port: 0, transport: "TCP" });
   const [mtprotoCfg, setMtprotoCfg] = useState<MTProto>({ port: 0, domain: "", web: false, webOnly: false });
+  const [snellCfg, setSnellCfg] = useState<Snell>(SNELL_DEFAULT);
   const [saved, setSaved] = useState<{
     enabled: Record<string, boolean>;
     fps: Record<string, string>;
@@ -162,6 +167,7 @@ export function ConnectionsEditor({
     awg: Awg;
     mieru: Mieru;
     mtproto: MTProto;
+    snell: Snell;
   }>({
     enabled: {},
     fps: {},
@@ -172,6 +178,7 @@ export function ConnectionsEditor({
     awg: { port: 0, dns: "" },
     mieru: { port: 0, transport: "TCP" },
     mtproto: { port: 0, domain: "", web: false, webOnly: false },
+    snell: SNELL_DEFAULT,
   });
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
@@ -203,6 +210,13 @@ export function ConnectionsEditor({
       web: s.mtproto_web,
       webOnly: s.mtproto_web_only,
     };
+    const sn: Snell = {
+      version: s.snell_version || 5,
+      obfs: s.snell_obfs || "none",
+      obfsHost: s.snell_obfs_host || "",
+      mode: s.snell_mode || "default",
+      base: s.snell_port_base || 0,
+    };
     setEnabled(en);
     setFps(fp);
     setNames(nm);
@@ -212,9 +226,10 @@ export function ConnectionsEditor({
     setAwgCfg(g);
     setMieruCfg(mi);
     setMtprotoCfg(mt);
+    setSnellCfg(sn);
     setRegenReality(false);
     setRegenAwg(false);
-    setSaved({ enabled: en, fps: fp, names: nm, hy: h, reality: r, anti: a, awg: g, mieru: mi, mtproto: mt });
+    setSaved({ enabled: en, fps: fp, names: nm, hy: h, reality: r, anti: a, awg: g, mieru: mi, mtproto: mt, snell: sn });
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs once on mount; the loader is redefined every render, so listing it would refetch in a loop
@@ -247,9 +262,15 @@ export function ConnectionsEditor({
     mtprotoCfg.domain !== saved.mtproto.domain ||
     mtprotoCfg.web !== saved.mtproto.web ||
     mtprotoCfg.webOnly !== saved.mtproto.webOnly;
+  const snellChanged =
+    snellCfg.version !== saved.snell.version ||
+    snellCfg.obfs !== saved.snell.obfs ||
+    snellCfg.obfsHost !== saved.snell.obfsHost ||
+    snellCfg.mode !== saved.snell.mode ||
+    snellCfg.base !== saved.snell.base;
   const dirty =
-    fpsChanged || namesChanged || protocolsChanged || hyChanged ||
-    realityChanged || regenReality || antiServerChanged || antiClientChanged || awgChanged || mieruChanged || mtprotoChanged;
+    fpsChanged || namesChanged || protocolsChanged || hyChanged || realityChanged || regenReality ||
+    antiServerChanged || antiClientChanged || awgChanged || mieruChanged || mtprotoChanged || snellChanged;
   // Config-affecting changes restart Xray (on the master) or re-push to the node.
   const restartsXray =
     protocolsChanged || portsChanged || obfsChanged || realityChanged || regenReality || antiServerChanged;
@@ -308,6 +329,11 @@ export function ConnectionsEditor({
         mtproto_domain_reset: mtprotoCfg.domain === "" && saved.mtproto.domain !== "",
         mtproto_web: mtprotoCfg.web,
         mtproto_web_only: mtprotoCfg.web && mtprotoCfg.webOnly,
+        snell_version: snellCfg.version,
+        snell_obfs: snellCfg.obfs,
+        snell_obfs_host: snellCfg.obfsHost,
+        snell_mode: snellCfg.mode,
+        snell_port_base: snellCfg.base,
       });
       applyStatus(s);
       notifySuccess(t("common.saved"));
@@ -326,6 +352,7 @@ export function ConnectionsEditor({
     setAwgCfg(saved.awg);
     setMieruCfg(saved.mieru);
     setMtprotoCfg(saved.mtproto);
+    setSnellCfg(saved.snell);
     setRegenReality(false);
     setRegenAwg(false);
   };
@@ -656,6 +683,97 @@ export function ConnectionsEditor({
                     </>
                   ) : (
                     <SettingRow hint={t("conn.enableMieru")} />
+                  ))}
+
+                {p.key === "snell" &&
+                  (on ? (
+                    <>
+                      <SettingRow
+                        label={t("conn.snellVersion")}
+                        field={
+                          <Select
+                            data={[
+                              { value: "5", label: "v5" },
+                              { value: "6", label: "v6" },
+                            ]}
+                            value={String(snellCfg.version)}
+                            onChange={(v) => setSnellCfg((s) => ({ ...s, version: Number(v) || 5 }))}
+                          />
+                        }
+                      />
+                      {snellCfg.version === 6 ? (
+                        <SettingRow
+                          label={t("conn.snellMode")}
+                          hint={t("conn.snellModeHint")}
+                          field={
+                            <Select
+                              data={[
+                                { value: "default", label: t("conn.snellModeDefault") },
+                                { value: "unshaped", label: t("conn.snellModeUnshaped") },
+                              ]}
+                              value={snellCfg.mode}
+                              onChange={(v) => setSnellCfg((s) => ({ ...s, mode: v }))}
+                            />
+                          }
+                        />
+                      ) : (
+                        <>
+                          <SettingRow
+                            label={t("conn.snellObfs")}
+                            field={
+                              <Select
+                                data={[
+                                  { value: "none", label: t("conn.snellObfsNone") },
+                                  { value: "http", label: "HTTP" },
+                                  { value: "tls", label: "TLS" },
+                                ]}
+                                value={snellCfg.obfs}
+                                onChange={(v) => setSnellCfg((s) => ({ ...s, obfs: v }))}
+                              />
+                            }
+                          />
+                          {snellCfg.obfs !== "none" && (
+                            <SettingRow
+                              label={t("conn.snellObfsHost")}
+                              hint={t("conn.snellObfsHostHint")}
+                              field={
+                                <TextInput
+                                  mono
+                                  value={snellCfg.obfsHost}
+                                  placeholder="www.bing.com"
+                                  onChange={(v) => setSnellCfg((s) => ({ ...s, obfsHost: v.trim() }))}
+                                />
+                              }
+                            />
+                          )}
+                        </>
+                      )}
+                      <SettingRow
+                        label={t("conn.snellPortBase")}
+                        hint={t("conn.snellPortBaseHint")}
+                        field={
+                          <TextInput
+                            type="number"
+                            value={snellCfg.base ? String(snellCfg.base) : ""}
+                            onChange={(v) => setSnellCfg((s) => ({ ...s, base: Number(v.replace(/\D/g, "")) || 0 }))}
+                          />
+                        }
+                      />
+                      {status.snell_users > 0 && (
+                        <SettingRow
+                          hint={t("conn.snellListening", { up: status.snell_listening, total: status.snell_users })}
+                        />
+                      )}
+                      {status.snell_unsupported && (
+                        <SettingRow hint={<span className="text-warning">{t("conn.snellUnsupported")}</span>} />
+                      )}
+                      {status.snell_error && (
+                        <SettingRow hint={<span className="text-warning">{status.snell_error}</span>} />
+                      )}
+                      <SettingRow hint={t("conn.snellHint")} />
+                    </>
+                  ) : (
+                    <SettingRow hint={t("conn.enableSnell")} />
                   ))}
 
                 {p.key === "mtproto" &&

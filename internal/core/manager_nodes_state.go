@@ -48,6 +48,8 @@ func nodeSettings(set *model.Settings, n *model.Node) *model.Settings {
 	ns.TrustTunnelEnabled, ns.TrustTunnelName = derefBool(n.TrustTunnelEnabled), ""
 	ns.XHTTPEnabled, ns.XHTTPName = derefBool(n.XHTTPEnabled), "" // the path stays the panel's
 	ns.MTProtoEnabled, ns.MTProtoPort, ns.MTProtoName = derefBool(n.MTProtoEnabled), 0, ""
+	ns.SnellEnabled, ns.SnellName = derefBool(n.SnellEnabled), ""
+	ns.SnellVersion, ns.SnellObfs, ns.SnellObfsHost, ns.SnellMode, ns.SnellPortBase = model.SnellV5, model.SnellObfsNone, "", model.SnellModeDefault, 0
 	ns.MTProtoDomain = n.MTProtoDomain
 	ns.MTProtoWeb, ns.MTProtoWebOnly = false, false // the node's own (Connections), never the master's
 	// REALITY donor: the node's own if set, otherwise inherit the panel's (a node
@@ -136,7 +138,10 @@ func nodeSettings(set *model.Settings, n *model.Node) *model.Settings {
 		ns.MTProtoPort = c.MTProtoPort
 		ns.MTProtoName = c.MTProtoName
 		ns.MTProtoWeb, ns.MTProtoWebOnly = c.MTProtoWeb, c.MTProtoWebOnly
+		ns.SnellVersion, ns.SnellObfs, ns.SnellObfsHost = model.SnellVersionOr(c.SnellVersion), model.SnellObfsOr(c.SnellObfs), c.SnellObfsHost
+		ns.SnellMode, ns.SnellPortBase, ns.SnellName = model.SnellModeOr(c.SnellMode), c.SnellPortBase, c.SnellName
 	}
+	ns.SnellPortBase = model.SnellPortBaseOr(ns.SnellPortBase)
 	if ns.MieruPort == 0 {
 		// Nothing chosen: the node's own default, clear of its other listeners.
 		ns.MieruPort = clearOf(mieruHeldOn(&ns, nil), ns.MieruTransport, defaultMieruPort(nodeMieruSeed(n)))
@@ -251,6 +256,8 @@ func (m *Manager) generateNodeState(n *model.Node, x *nodeStateInputs, users []m
 	// built on a fresh or failed claim is not remembered.
 	genUsers, wgClaimed, wgOK := m.claimWireGuard(users, opts.Custom, opts.Access)
 	complete = complete && wgOK && !wgClaimed
+	genUsers, snellClaimed, snellOK := m.claimSnell(ns.SnellEnabled, genUsers)
+	complete = complete && snellOK && !snellClaimed
 	cfg, err := xray.Generate(ns, genUsers, opts, x.proxies)
 	if err != nil {
 		return nil, err
@@ -312,6 +319,7 @@ func (m *Manager) generateNodeState(n *model.Node, x *nodeStateInputs, users []m
 	if l := MTProtoListen(ns); l.Port > 0 || l.Web != "" {
 		meta.MTProto = &nodeapi.MTProtoState{Port: l.Port, Domain: l.Domain, Front: l.Front, Web: l.Web}
 	}
+	meta.Snell = nodeSnellState(ns, cfg, genUsers)
 	var claimed bool
 	meta.AWG, claimed = m.nodeAWGStateClaimed(n, ns, users, in.access)
 	complete = complete && claimed

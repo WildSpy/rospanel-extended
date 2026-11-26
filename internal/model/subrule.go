@@ -73,7 +73,7 @@ const (
 
 // SubProtoKeys lists the overridable protocols in the order the editor shows them.
 var SubProtoKeys = []string{
-	LaneVLESS, LaneXHTTP, LaneReality, LaneHysteria, LaneNaive, LaneAnyTLS, LaneMieru, LaneTrustTunnel, LaneAWG,
+	LaneVLESS, LaneXHTTP, LaneReality, LaneHysteria, LaneNaive, LaneAnyTLS, LaneMieru, LaneSnell, LaneTrustTunnel, LaneAWG,
 	SubProtoCustom, SubProtoVLESSEnc,
 }
 

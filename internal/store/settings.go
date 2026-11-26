@@ -65,6 +65,7 @@ func (s *Store) readSettings() (*model.Settings, error) {
 	var routingCfg, subRulesJSON, subDPIJSON string
 	var reachCountries string
 	var mtprotoEn, mtprotoWeb, mtprotoWebOnly int
+	var snellEn int
 	var masterHideFull, masterHideOver, awgEn, naiveEn, mieruEn, anytlsEn, ttEn, xhttpEn, hideOffline, subHappCrypt, subTGBind, subTGRebind, subShowClash, tgMailingSwitch, subPageEnabled int
 	var awgParamsJSON, connPolicyJSON string
 	var walletEn, refFirstOnly, winbackEn, churnSurvey, autoUpdateNodes, blacklistEn, planChange int
@@ -130,7 +131,8 @@ func (s *Store) readSettings() (*model.Settings, error) {
 		       reach_countries, reach_probes, reach_every, reach_threshold, reach_token,
 		       mtproto_enabled, mtproto_port, mtproto_name, mtproto_domain, mtproto_web, mtproto_web_only,
 		       sub_self_rotate, monthly_report_sent, sub_tg_rebind_hours, sub_page_enabled,
-		       sub_moved_to, sub_apps, sub_custom_apps, sub_app_links, sub_wizard_apps
+		       sub_moved_to, sub_apps, sub_custom_apps, sub_app_links, sub_wizard_apps,
+		       snell_enabled, snell_version, snell_obfs, snell_obfs_host, snell_mode, snell_port_base, snell_name
 		FROM settings WHERE id = 1`,
 	).Scan(
 		&st.ID, &st.Host, &st.SNI, &st.TLSMode, &st.ACMEEmail, &st.CertPath, &st.KeyPath,
@@ -196,6 +198,7 @@ func (s *Store) readSettings() (*model.Settings, error) {
 		&mtprotoEn, &st.MTProtoPort, &st.MTProtoName, &st.MTProtoDomain, &mtprotoWeb, &mtprotoWebOnly,
 		&st.SubSelfRotateHours, &st.MonthlyReportSent, &st.SubTGRebindHours, &subPageEnabled,
 		&st.SubMovedTo, &st.SubApps, &customAppsJSON, &appLinksJSON, &wizardAppsJSON,
+		&snellEn, &st.SnellVersion, &st.SnellObfs, &st.SnellObfsHost, &st.SnellMode, &st.SnellPortBase, &st.SnellName,
 	)
 
 	if err != nil {
@@ -231,6 +234,10 @@ func (s *Store) readSettings() (*model.Settings, error) {
 	st.MTProtoEnabled = mtprotoEn != 0
 	st.MTProtoWeb, st.MTProtoWebOnly = mtprotoWeb != 0, mtprotoWebOnly != 0
 	st.MieruTransport = model.MieruTransportOr(st.MieruTransport)
+	st.SnellEnabled = snellEn != 0
+	st.SnellVersion = model.SnellVersionOr(st.SnellVersion)
+	st.SnellObfs, st.SnellMode = model.SnellObfsOr(st.SnellObfs), model.SnellModeOr(st.SnellMode)
+	st.SnellPortBase = model.SnellPortBaseOr(st.SnellPortBase)
 	st.WalletEnabled = walletEn != 0
 	if billingPeriodsJSON != "" {
 		_ = json.Unmarshal([]byte(billingPeriodsJSON), &st.BillingPeriods)
@@ -768,6 +775,7 @@ var protocolColumn = map[string]string{
 	"trusttunnel": "trusttunnel_enabled",
 	"xhttp":       "xhttp_enabled",
 	"mtproto":     "mtproto_enabled",
+	"snell":       "snell_enabled",
 }
 
 // SetProtocolEnabled flips a single protocol's on/off toggle.
@@ -947,6 +955,16 @@ func (s *Store) SetAWGConfig(port int, dns, name string) error {
 func (s *Store) SetMieruConfig(port int, transport, name string) error {
 	_, err := s.db.Exec(`UPDATE settings SET mieru_port = ?, mieru_transport = ?, mieru_name = ?,
 		updated_at = unixepoch() WHERE id = 1`, port, model.MieruTransportOr(transport), name)
+	return err
+}
+
+// SetSnellConfig persists the master's Snell settings and display name (the toggle
+// goes through SetProtocolEnabled("snell")).
+func (s *Store) SetSnellConfig(version int, obfs, obfsHost, mode string, portBase int, name string) error {
+	defer s.invalidateSettingsCache()
+	_, err := s.db.Exec(`UPDATE settings SET snell_version = ?, snell_obfs = ?, snell_obfs_host = ?, snell_mode = ?,
+		snell_port_base = ?, snell_name = ?, updated_at = unixepoch() WHERE id = 1`,
+		model.SnellVersionOr(version), model.SnellObfsOr(obfs), obfsHost, model.SnellModeOr(mode), portBase, name)
 	return err
 }
 

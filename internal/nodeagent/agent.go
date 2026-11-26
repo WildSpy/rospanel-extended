@@ -44,6 +44,7 @@ import (
 	"github.com/Shu1t3/rospanel-shu1t3/internal/opera"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/proxyproto"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/shaper"
+	"github.com/Shu1t3/rospanel-shu1t3/internal/snell"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/sysstat"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/sysunit"
 	"github.com/Shu1t3/rospanel-shu1t3/internal/tlsfront"
@@ -303,6 +304,13 @@ type Agent struct {
 	mieru    *mieru.Server
 	mieruMu  sync.Mutex // a sync's Apply and a retry, so neither overwrites the other's outcome
 	mieruErr atomic.Pointer[string]
+
+	// snell answers Snell on its users' ports (internal/snell); its users are
+	// snell-in's clients in the config last applied. snellErr is why some ports do not
+	// listen.
+	snell    *snell.Server
+	snellMu  sync.Mutex
+	snellErr atomic.Pointer[string]
 
 	// mtproto is the Telegram proxy on the port the panel gives (internal/mtproto); its
 	// users are mtproto-in's clients in the config last applied.
@@ -596,6 +604,7 @@ func newAgent(dataDir string, ident *Identity) (*Agent, error) {
 		xhttp:        xhttpfront.New(),
 		trusttunnel:  naive.NewTrustTunnel(xray.TrustTunnelInnerAddr),
 		mieru:        mieru.New(xray.MieruInnerAddr),
+		snell:        snell.New(xray.SnellInnerAddr),
 		mtproto:      mtproto.New(xray.MTProtoInnerAddr),
 		turn:         turnrelay.New(),
 		policyBlock:  ipblock.New(ipblock.TablePolicy),
@@ -1223,6 +1232,7 @@ func (a *Agent) buildSyncRequest() nodeapi.SyncRequest {
 	a.retryAWG()
 	awgUp, awgErr := a.awgState()
 	a.retryMieru()
+	a.retrySnell()
 	a.retryMTProto()
 	_ = a.turn.Retry() // still failing is reported below, as TurnDown
 	conns, connsMore := a.takeConns(connsChunkMax)
@@ -1239,6 +1249,8 @@ func (a *Agent) buildSyncRequest() nodeapi.SyncRequest {
 		MTProto:           a.mtproto != nil,
 		MTProtoWeb:        a.mtproto != nil,
 		MTProtoError:      a.mtprotoError(),
+		Snell:             a.snell != nil,
+		SnellError:        a.snellError(),
 		UpdateError:       a.updateErr,
 		TurnDown:          a.turn.Failed(),
 		StateTag:          a.splitTag(),
@@ -1507,6 +1519,7 @@ func (a *Agent) applyUsers(st *nodeapi.NodeState) error {
 	}
 	a.syncNaive(data)
 	a.syncMieru(data, m.Mieru)
+	a.syncSnell(data, m.Snell)
 	a.syncMTProto(data, m.MTProto)
 	a.syncAnyTLS(data)
 	a.syncXHTTP(data, public)
@@ -1719,6 +1732,9 @@ func (a *Agent) shutdown() {
 	if a.mieru != nil {
 		a.mieru.Close()
 	}
+	if a.snell != nil {
+		a.snell.Close()
+	}
 	if a.mtproto != nil {
 		a.mtproto.Close()
 	}
@@ -1824,6 +1840,9 @@ func (a *Agent) selfUpdate(parent context.Context, updateRepo string) (swapped, 
 	}
 	if a.mieru != nil {
 		a.mieru.Close()
+	}
+	if a.snell != nil {
+		a.snell.Close()
 	}
 	if a.mtproto != nil {
 		a.mtproto.Close()

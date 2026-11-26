@@ -148,6 +148,12 @@ func Assemble(p *Parts) (*nodeapi.NodeState, error) {
 		t.Peers = nil
 		tunnel = &t
 	}
+	var snell *nodeapi.SnellState
+	if meta.Snell != nil {
+		sn := *meta.Snell
+		sn.Slots = nil
+		snell = &sn
+	}
 	for _, r := range p.Rows {
 		email := model.UserEmail(r.ID)
 		if r.Speed > 0 {
@@ -162,8 +168,15 @@ func Assemble(p *Parts) (*nodeapi.NodeState, error) {
 				tunnel.Peers = append(tunnel.Peers, nodeapi.AWGPeer{PublicKey: x.PublicKey, Addr: x.Addr, Email: email})
 			}
 		}
+		if snell != nil && r.SnellSlot > 0 {
+			if snell.Slots == nil {
+				snell.Slots = map[string]int{}
+			}
+			snell.Slots[email] = r.SnellSlot
+		}
 	}
 	meta.AWG = tunnel
+	meta.Snell = snell
 	meta.BlockedIPs, meta.BlockTTLHours = p.Blocked.IPs, p.Blocked.TTLHours
 	meta.BannedIPs = p.Blocked.Banned
 	return &nodeapi.NodeState{Hash: p.Held.Hash, XrayConfig: cfg, Meta: meta}, nil
