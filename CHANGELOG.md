@@ -1,5 +1,20 @@
 # Changelog
 
+## [5.14.0](https://github.com/WildSpy/rospanel-extended/compare/v5.13.0...v5.14.0) (2026-11-26)
+
+
+### Features
+
+* **mtproto:** Telegram Desktop WEB proxy beside the fake-TLS lane ([bf0757b](https://github.com/WildSpy/rospanel-extended/commit/bf0757bf336f74cc1cd06993cae9f1bd8fd027e0))
+
+
+### Bug Fixes
+
+* **mtproto:** satisfy golangci-lint (unused const, unclosed body in test) ([43aee5f](https://github.com/WildSpy/rospanel-extended/commit/43aee5f346c63f2ea059d167023809b560ef51e7))
+* **mtproto:** WEB proxy is not Desktop-only ([77e9184](https://github.com/WildSpy/rospanel-extended/commit/77e91845339fb1b19063b16d0335e488bda7755f))
+* **release:** install command in release notes points at WildSpy/rospanel-extended ([c893ed2](https://github.com/WildSpy/rospanel-extended/commit/c893ed2331e126d41218098391f2df8e3ceaa0d1))
+* **web:** declare --color-onbrand so bg-onbrand/text-onbrand exist ([20a244b](https://github.com/WildSpy/rospanel-extended/commit/20a244b1fd021503f3c9111cb6944d5bd64e4e8e))
+
 ## [5.13.0](https://github.com/WildSpy/rospanel-extended/compare/v5.12.2...v5.13.0) (2026-11-25)
 
 
