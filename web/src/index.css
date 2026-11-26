@@ -31,6 +31,13 @@
      surface colour, which can be dark. */
   --color-onaccent: #ffffff;
 
+  /* Text/icons on the ACCENT fill (bg-brand-600): the primary button, a selected
+     segment, a ticked checkbox, a switch's knob. White by default; brand.tsx sets it
+     at runtime to dark ink for an accent too light for white. Declared here so
+     Tailwind generates bg-onbrand / text-onbrand at all — without it those classes
+     produced no CSS, and an "on" switch's knob was transparent on its track. */
+  --color-onbrand: #ffffff;
+
   /* Page background base. The configurable theme overrides --ui-bg (and the
      brand ramp / ink / white / gray ramp) at runtime in brand.tsx. */
   --ui-bg: #eaf1fb;
