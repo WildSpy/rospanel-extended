@@ -408,12 +408,12 @@ func (p *port) serve(c net.Conn) {
 }
 
 // quiet reports whether a connection's end is not worth a line: the client went away
-// (a port check that connects and leaves, a pool closing an idle session), a socket
-// opened ahead of time was never used (handshakeTimeout), or the port was closed
-// under it.
+// (a port check that connects and leaves, a pool closing an idle session, an app
+// dropping its tunnel mid-record — unexpected EOF), a socket opened ahead of time was
+// never used (handshakeTimeout), or the port was closed under it.
 func quiet(err error) bool {
-	return errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.ECONNRESET) ||
-		errors.Is(err, syscall.EPIPE) || errors.Is(err, os.ErrDeadlineExceeded)
+	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, net.ErrClosed) ||
+		errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) || errors.Is(err, os.ErrDeadlineExceeded)
 }
 
 // warnEvery bounds the lines a port logs: one, then the next after this long with how

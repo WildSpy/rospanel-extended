@@ -299,6 +299,46 @@ func TestFailedRequestIsLogged(t *testing.T) {
 	}
 }
 
+// A client that drops its connection mid-tunnel — an app closed, a page left — is how
+// tunnels usually end, not a failure: nothing is logged.
+func TestClientCloseIsNotLogged(t *testing.T) {
+	var out syncBuffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&out, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	x := newFakeXray(t)
+	for _, cfg := range []Config{{Version: V5, Obfs: ObfsTLS}, {Version: V6, Mode: ModeDefault}, {Version: V6, Mode: ModeUnshaped}} {
+		ports := freePorts(t, 1)
+		s := New(x.addr())
+		if err := s.Apply(cfg, "", []User{{Email: "u1", UUID: uuidA, Port: ports[0]}}); err != nil {
+			t.Fatal(err)
+		}
+		raw := dial(t, ports[0])
+		conn, err := method(t, cfg, uuidA).DialConn(raw, M.ParseSocksaddrHostPort("example.com", 80))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := conn.Write([]byte("ping")); err != nil {
+			t.Fatal(err)
+		}
+		got := make([]byte, 4)
+		if _, err := io.ReadFull(conn, got); err != nil {
+			t.Fatal(err)
+		}
+		raw.Close()
+		deadline := time.Now().Add(2 * time.Second)
+		for s.Open() > 0 && time.Now().Before(deadline) {
+			time.Sleep(20 * time.Millisecond)
+		}
+		time.Sleep(100 * time.Millisecond)
+		s.Close()
+		if strings.Contains(out.String(), "failed") {
+			t.Fatalf("v%d %s%s: a client closing its tunnel was logged:\n%s", cfg.Version, cfg.Obfs, cfg.Mode, out.String())
+		}
+	}
+}
+
 // A v6 client sends its request with the app's first bytes, so a socket an app opened
 // ahead of time is silent until used: it must still work when the app comes to it, and
 // one never used is closed after handshakeTimeout without a line in the log.
