@@ -45,7 +45,7 @@ func target(d M.Socksaddr) (string, uint16) {
 	if d.Port == 0 {
 		return "", 0
 	}
-	if d.IsFqdn() {
+	if d.IsDomain() {
 		if len(d.Fqdn) > 255 {
 			return "", 0
 		}
@@ -117,35 +117,37 @@ func (s *Server) relayTCP(p *port, conn net.Conn, source, destination M.Socksadd
 		return N.ReportHandshakeFailure(conn, err)
 	}
 	defer xc.Close()
-	up := make(chan error, 1)
+	// The upload's error is read once done is closed, which orders the write before it.
+	var upErr error
+	done := make(chan struct{})
 	go func() {
-		_, err := io.Copy(xc, conn)
+		_, upErr = io.Copy(xc, conn)
 		_ = closeWrite(xc)
-		up <- err
+		close(done)
 	}()
 	if !vlessin.ReadResponse(xc) {
 		_ = N.ReportHandshakeFailure(conn, errXrayRefused)
 		_ = conn.Close()
 		_ = xc.Close()
-		<-up
+		<-done // the upload ends with the connections; the refusal is the error
 		return errXrayRefused
 	}
 	if _, err := io.Copy(conn, xc); err != nil {
 		_ = conn.Close()
 		_ = xc.Close()
-		<-up
+		<-done // the upload ends with the connections; the download's error is the one
 		return err
 	}
 	_ = closeWrite(conn)
 	t := time.NewTimer(halfCloseWait)
 	defer t.Stop()
 	select {
-	case err := <-up:
-		return err
+	case <-done:
+		return upErr
 	case <-t.C:
 		_ = conn.Close()
 		_ = xc.Close()
-		<-up
+		<-done // the client never ended its upload: cut, not an error
 		return nil
 	}
 }
