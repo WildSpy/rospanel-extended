@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.15.0](https://github.com/WildSpy/rospanel-extended/compare/v5.14.0...v5.15.0) (2026-11-28)
+
+
+### Features
+
+* **snell:** Snell v5 and v6 lanes with a port per user ([bba1f8b](https://github.com/WildSpy/rospanel-extended/commit/bba1f8bba07b7497a5ec8aca218d85be89b4dc02))
+* **snell:** start Snell as v5 with TLS obfuscation and warn about v6 in Russia ([4d39d10](https://github.com/WildSpy/rospanel-extended/commit/4d39d103179e249d549553f0fdcbececa1a807c1))
+* **sub:** the apps a subscription is fetched with, and the minutes spent on each protocol ([638c4fa](https://github.com/WildSpy/rospanel-extended/commit/638c4fa09e30c304422c70128f5a52c1e633f65f))
+* sync upstream v5.20.0 preserving fork safeguards ([1560cbc](https://github.com/WildSpy/rospanel-extended/commit/1560cbced7afc2df06f2327d522bdbd12ad55b67))
+* **users:** filter by several statuses, tags and groups, and sort by a column ([37938d9](https://github.com/WildSpy/rospanel-extended/commit/37938d97412044dd6715440b765569427c13dcc6))
+
+
+### Bug Fixes
+
+* **snell:** do not log a client closing its tunnel as a failure ([8816b7f](https://github.com/WildSpy/rospanel-extended/commit/8816b7fcd98b2c818e4108fd6dd4bfc34c1aa715))
+* **snell:** keep silent connections open for Surge and Shadowrocket v6 early data ([57c7c64](https://github.com/WildSpy/rospanel-extended/commit/57c7c64183cc5b39a089d3b4a43607303242c9d9))
+* **snell:** log failed Snell requests and tunnels ([7eca46d](https://github.com/WildSpy/rospanel-extended/commit/7eca46df3188661b8032378ef18706748e5dde7b))
+* **snell:** satisfy golangci-lint in the TCP relay ([0fa1fda](https://github.com/WildSpy/rospanel-extended/commit/0fa1fda3ef2d816922bb3a352d4a85f4dc87ec81))
+* **users:** the address table names the platform and keeps the User-Agent ([bbe5753](https://github.com/WildSpy/rospanel-extended/commit/bbe57537bbfbf18081fd244362a888c374abd397))
+
 ## [5.14.0](https://github.com/WildSpy/rospanel-extended/compare/v5.13.0...v5.14.0) (2026-11-26)
 
 
