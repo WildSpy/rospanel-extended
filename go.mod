@@ -4,23 +4,24 @@ go 1.27.4
 
 require (
 	github.com/amnezia-vpn/amneziawg-go/v3 v3.1.20261116
-	github.com/enfein/mieru/v3 v3.39.0
+	github.com/enfein/mieru/v3 v3.40.0
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/google/uuid v1.6.0
-	github.com/pion/dtls/v3 v3.1.15
-	github.com/pion/transport/v5 v5.1.5
+	github.com/pion/dtls/v3 v3.1.16
+	github.com/pion/transport/v5 v5.1.6
 	github.com/sagernet/sing v0.9.7-0.20261124055526-8badbba80825
 	github.com/sagernet/sing-anytls v0.0.0-20260928104022-580984e4d8cb
+	github.com/sagernet/sing-snell v0.0.0-20261125221246-3f5050388f83
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/yuin/goldmark v1.8.7
-	golang.org/x/crypto v0.58.0
-	golang.org/x/net v0.62.0
+	golang.org/x/crypto v0.59.0
+	golang.org/x/net v0.63.0
 	golang.org/x/sys v0.50.0
 	golang.org/x/text v0.44.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
-	modernc.org/sqlite v1.62.0
+	modernc.org/sqlite v1.63.0
 )
 
 require (
@@ -33,7 +34,6 @@ require (
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/sagernet/sing-snell v0.0.0-20261125221246-3f5050388f83 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
 	gvisor.dev/gvisor v0.0.0-20250606233247-e3c4c4cad86f // indirect

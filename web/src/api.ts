@@ -710,6 +710,42 @@ export const getLaneTraffic = (p: { from?: string; to?: string }) => {
   if (p.to) q.set('to', p.to)
   return api<LaneTraffic[]>('api/stats/lanes?' + q.toString())
 }
+// SubClient is one install that fetched a user's subscription: the app and platform
+// parsed from its User-Agent (and x-device-os), the raw User-Agent of its last fetch.
+export type SubClient = {
+  // One install: "h:<hwid>" when the client names itself, else "a:<app>|<platform>".
+  id: string
+  app: string
+  version: string
+  platform: string
+  model: string
+  // The address this install last refreshed the subscription from: a hint, since a
+  // device may fetch over Wi-Fi and tunnel over mobile.
+  ip: string
+  ua: string
+  first_seen: number
+  last_seen: number
+  fetches: number
+}
+export const getUserClients = (id: number) =>
+  api<{ clients: SubClient[] }>(`api/users/${id}/clients`)
+// UserLane is a user's active minutes on one protocol over a period (summed over
+// servers), on how many days, and the last day it was used.
+export type UserLane = {
+  lane: string
+  name: string
+  minutes: number
+  days: number
+  last_day: string
+}
+export const getUserLanes = (id: number, p: { from: string; to: string }) =>
+  api<UserLane[]>(`api/users/${id}/lanes?` + new URLSearchParams(p).toString())
+// ClientShare is how many users fetched with one app, or from one platform.
+export type ClientShare = { name: string; users: number }
+export const getClientShares = (p: { from: string; to: string }) =>
+  api<{ apps: ClientShare[]; platforms: ClientShare[]; users: number }>(
+    'api/stats/clients?' + new URLSearchParams(p).toString(),
+  )
 export type CascadeTraffic = {
   exit_id: number
   exit_name: string
@@ -2196,15 +2232,24 @@ export type UserRow = Pick<
 export interface UsersPage {
   users: UserRow[]
   total: number // users the filter matches
-  all: number // every user
-  counts: Record<string, number> // per filter chip, over every user
+  all: number // every user, whatever is filtered
+  // How many users the tag and the group leave — what the chips count and what
+  // "all · N" reads. Equals all when neither is set.
+  subset: number
+  counts: Record<string, number> // per filter chip, over that subset
   tags: TagCount[]
   ids?: number[] // every matching id, in list order, when asked for
 }
 export interface UsersPageQuery {
   q?: string
-  filter?: string
-  tag?: string
+  // Any of these statuses; empty means everyone.
+  filter?: string[]
+  // Any of these tags.
+  tag?: string[]
+  // Any of these access group ids; "none" stands for the users in no group.
+  group?: string[]
+  // The direction of the order: asc | desc (each sort has its natural one).
+  dir?: string
   sort?: string
   lang?: string
   offset?: number
@@ -2214,9 +2259,12 @@ export interface UsersPageQuery {
 export const listUsersPage = (p: UsersPageQuery) => {
   const q = new URLSearchParams()
   if (p.q) q.set('q', p.q)
-  if (p.filter && p.filter !== 'all') q.set('filter', p.filter)
-  if (p.tag) q.set('tag', p.tag)
+  // Repeated parameters: one per chosen status, tag and group.
+  for (const f of p.filter ?? []) q.append('filter', f)
+  for (const t of p.tag ?? []) q.append('tag', t)
+  for (const g of p.group ?? []) q.append('group', g)
   if (p.sort) q.set('sort', p.sort)
+  if (p.dir) q.set('dir', p.dir)
   if (p.lang) q.set('lang', p.lang)
   if (p.offset) q.set('offset', String(p.offset))
   if (p.limit !== undefined) q.set('limit', String(p.limit))

@@ -143,6 +143,7 @@ type Supervisor struct {
 	probe func() bool
 
 	onAccess func(email, ip, dest string) // called per access-log connection line
+	onLane   func(email, inbound string)  // the same line's inbound tag, when it has one
 	// publicPorts is where an inbound's clients connect when that is not the port it
 	// listens on: the TCP-TLS lane behind the front. Under mu.
 	publicPorts map[string]uint16
@@ -243,6 +244,10 @@ func (s *Supervisor) Version() string {
 // carries a user email + source IP (used to track online status / connections).
 // dest is the destination host when the line has a usable one, else empty.
 func (s *Supervisor) SetOnAccess(fn func(email, ip, dest string)) { s.onAccess = fn }
+
+// SetOnLane registers a callback invoked with the user and inbound tag of each access
+// line onAccess gets, for the per-user protocol statistics. Set before Start.
+func (s *Supervisor) SetOnLane(fn func(email, inbound string)) { s.onLane = fn }
 
 // SetPublicPort says clients reach inbound tag on port — the front's — rather than on
 // the port the inbound listens on; 0 clears it. The sockets a removed user's
@@ -1412,11 +1417,13 @@ func (s *Supervisor) tap(p *proc, r io.Reader, w io.Writer, access bool) {
 				email, ip, dest = p.tunnelUsers.Load().attribute(string(b))
 			}
 			if email != "" && ip != "" {
-				if v := p.cutOff.Load(); v != nil && v.cuts(string(b)) {
+				line := string(b)
+				if v := p.cutOff.Load(); v != nil && v.cuts(line) {
 					continue
 				}
-				p.conns.observe(email, string(b))
+				p.conns.observe(email, line)
 				s.dispatchAccess(email, ip, dest)
+				s.dispatchLane(email, line)
 			}
 		}
 	}
@@ -1435,6 +1442,23 @@ func parseAccessBytes(b []byte) (email, ip, dest string) {
 		return "", "", ""
 	}
 	return parseAccess(string(b))
+}
+
+// dispatchLane invokes the onLane callback with the line's inbound tag. Recovered like
+// onAccess: a panic here would otherwise end the access-log reader, and with it the
+// online status, the device list and the per-protocol minutes, all silently.
+func (s *Supervisor) dispatchLane(email, line string) {
+	if s.onLane == nil {
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("xray: onLane panic recovered", "panic", r)
+		}
+	}()
+	if in := accessInbound(line); in != "" {
+		s.onLane(email, in)
+	}
 }
 
 // dispatchAccess invokes the onAccess callback, recovering from any panic so a
