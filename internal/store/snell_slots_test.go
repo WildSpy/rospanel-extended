@@ -1,6 +1,36 @@
 package store
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
+
+// A new server's Snell v5 starts with TLS obfuscation (0162); one whose operator turned
+// Snell on keeps the obfuscation chosen, none included.
+func TestSnellStartsWithTLS(t *testing.T) {
+	t.Parallel()
+	st := newStore(t)
+	set, err := st.GetSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if set.SnellObfs != "tls" {
+		t.Fatalf("a fresh server's Snell obfuscation is %q, want tls", set.SnellObfs)
+	}
+	sql, err := os.ReadFile("migrations/0162_snell_tls_default.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.db.Exec(`UPDATE settings SET snell_enabled = 1, snell_obfs = 'none' WHERE id = 1`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.db.Exec(string(sql)); err != nil {
+		t.Fatal(err)
+	}
+	if set, err = st.GetSettings(); err != nil || set.SnellObfs != "none" {
+		t.Fatalf("a server running Snell without obfuscation was switched to %q (%v)", set.SnellObfs, err)
+	}
+}
 
 // Slots go lowest-free first, stay with their user, and a deleted user's slot is the
 // next one handed out — so the port range stays as long as the user list.

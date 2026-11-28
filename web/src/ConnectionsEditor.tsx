@@ -81,7 +81,7 @@ type MTProto = { port: number; domain: string; web: boolean; webOnly: boolean };
 // Snell: the generation, its v5 obfuscation (and the host clients name in it), its v6
 // mode, and the first of the users' ports.
 type Snell = { version: number; obfs: string; obfsHost: string; mode: string; base: number };
-const SNELL_DEFAULT: Snell = { version: 5, obfs: "none", obfsHost: "", mode: "default", base: 0 };
+const SNELL_DEFAULT: Snell = { version: 5, obfs: "tls", obfsHost: "", mode: "default", base: 0 };
 
 // ConnectionsEditor is the full connection editor (protocols on/off + names +
 // fingerprints + ports + hop + WS + REALITY donor/keys/regen/port/anti-replay +
@@ -212,7 +212,7 @@ export function ConnectionsEditor({
     };
     const sn: Snell = {
       version: s.snell_version || 5,
-      obfs: s.snell_obfs || "none",
+      obfs: s.snell_obfs || "tls",
       obfsHost: s.snell_obfs_host || "",
       mode: s.snell_mode || "default",
       base: s.snell_port_base || 0,
@@ -702,20 +702,23 @@ export function ConnectionsEditor({
                         }
                       />
                       {snellCfg.version === 6 ? (
-                        <SettingRow
-                          label={t("conn.snellMode")}
-                          hint={t("conn.snellModeHint")}
-                          field={
-                            <Select
-                              data={[
-                                { value: "default", label: t("conn.snellModeDefault") },
-                                { value: "unshaped", label: t("conn.snellModeUnshaped") },
-                              ]}
-                              value={snellCfg.mode}
-                              onChange={(v) => setSnellCfg((s) => ({ ...s, mode: v }))}
-                            />
-                          }
-                        />
+                        <>
+                          <SettingRow hint={<span className="text-warning">{t("conn.snellV6Warning")}</span>} />
+                          <SettingRow
+                            label={t("conn.snellMode")}
+                            hint={t("conn.snellModeHint")}
+                            field={
+                              <Select
+                                data={[
+                                  { value: "default", label: t("conn.snellModeDefault") },
+                                  { value: "unshaped", label: t("conn.snellModeUnshaped") },
+                                ]}
+                                value={snellCfg.mode}
+                                onChange={(v) => setSnellCfg((s) => ({ ...s, mode: v }))}
+                              />
+                            }
+                          />
+                        </>
                       ) : (
                         <>
                           <SettingRow

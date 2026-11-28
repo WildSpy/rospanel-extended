@@ -3828,6 +3828,7 @@ const zh: Dict = {
     snellModeDefault: "default — 加密并整形流量",
     snellModeUnshaped: "unshaped — 仅加密，快约 10%",
     snellModeHint: "服务器与客户端的模式必须一致。不提供 unsafe-raw：没有密钥，服务器无法区分用户。",
+    snellV6Warning: "v6 不对流量做任何伪装：在俄罗斯的网络中，大多数连接在第一个数据包就被切断（DPI）。面向俄罗斯用户，请选择带 TLS 混淆的 v5。",
     snellPortBase: "起始端口",
     snellPortBaseHint: "每个用户都有自己的 TCP 端口：起始端口加上其在列表中的序号。该范围会自动在防火墙中放行。更改起始端口会改变所有用户的链接。",
     snellListening: "正在监听的端口：{{up}} / {{total}}",

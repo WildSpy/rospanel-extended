@@ -3841,6 +3841,7 @@ const en: Dict = {
     snellModeDefault: "default — encryption and traffic shaping",
     snellModeUnshaped: "unshaped — encryption only, ~10% faster",
     snellModeHint: "Server and client must use the same mode. unsafe-raw is not offered: without a key the server cannot tell users apart.",
+    snellV6Warning: "v6 does not disguise its traffic: from networks in Russia most connections are cut on the very first packet (DPI). For users in Russia, choose v5 with TLS obfuscation.",
     snellPortBase: "First port",
     snellPortBaseHint: "Every user has a TCP port of their own: the first port plus their place in the list. The range is opened in the firewall automatically. Changing the first port changes every user's link.",
     snellListening: "Ports listening: {{up}} of {{total}}",

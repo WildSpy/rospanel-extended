@@ -49,7 +49,7 @@ func nodeSettings(set *model.Settings, n *model.Node) *model.Settings {
 	ns.XHTTPEnabled, ns.XHTTPName = derefBool(n.XHTTPEnabled), "" // the path stays the panel's
 	ns.MTProtoEnabled, ns.MTProtoPort, ns.MTProtoName = derefBool(n.MTProtoEnabled), 0, ""
 	ns.SnellEnabled, ns.SnellName = derefBool(n.SnellEnabled), ""
-	ns.SnellVersion, ns.SnellObfs, ns.SnellObfsHost, ns.SnellMode, ns.SnellPortBase = model.SnellV5, model.SnellObfsNone, "", model.SnellModeDefault, 0
+	ns.SnellVersion, ns.SnellObfs, ns.SnellObfsHost, ns.SnellMode, ns.SnellPortBase = model.SnellV5, model.SnellObfsTLS, "", model.SnellModeDefault, 0
 	ns.MTProtoDomain = n.MTProtoDomain
 	ns.MTProtoWeb, ns.MTProtoWebOnly = false, false // the node's own (Connections), never the master's
 	// REALITY donor: the node's own if set, otherwise inherit the panel's (a node

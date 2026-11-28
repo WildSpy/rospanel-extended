@@ -2754,11 +2754,15 @@ func SnellVersionOr(v int) int {
 	return SnellV5
 }
 
-// SnellObfsOr is a stored v5 obfuscation, none for anything unknown.
+// SnellObfsOr is a stored v5 obfuscation: tls where none was ever chosen (a node whose
+// Snell was never set up) — without it a Snell stream is random bytes, which DPI in
+// Russia drops — and none for anything unknown.
 func SnellObfsOr(v string) string {
 	switch v {
-	case SnellObfsHTTP, SnellObfsTLS:
+	case SnellObfsNone, SnellObfsHTTP, SnellObfsTLS:
 		return v
+	case "":
+		return SnellObfsTLS
 	}
 	return SnellObfsNone
 }
